@@ -68,7 +68,7 @@ async def worker_node(
     )
 
     # Fase I: Journey agent prompt — defines agent behavior per phase
-    journey_prompt = state.get("context", {}).get("_journey_system_prompt", "")
+    journey_prompt = state.get("journey_system_prompt") or state.get("context", {}).get("_journey_system_prompt", "")
     if journey_prompt:
         prompt = journey_prompt
         # Use raw openai SDK to ensure response_format is passed

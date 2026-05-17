@@ -7,6 +7,7 @@ from langgraph.graph import StateGraph, END, START
 from qdrant_client import QdrantClient
 
 from kairos.core.state import AgentState
+from kairos.engine.journey_engine import JourneyEngine
 from kairos.core.exceptions import KairosError
 from kairos.engine.profile_engine import ProfileEngine
 from kairos.engine.prompt_engine import PromptEngine
@@ -39,12 +40,13 @@ from .nodes import (
     client_synthesizer_node, alert_checker_node, impronta_learning_node,
     obsidian_connector_node, supervisor_node,
 )
+from .nodes.journey_agent import journey_inject_node, journey_advance_node
 
 logger = logging.getLogger(__name__)
 
 
 class KairosRuntime:
-    def __init__(self, profiles_dir: str = "./profiles", prompt_store=None):
+    def __init__(self, profiles_dir: str = "./profiles", prompt_store=None, journey_engine: JourneyEngine = None):
         settings = get_settings()
 
         self.qdrant = QdrantClient(
@@ -98,6 +100,7 @@ class KairosRuntime:
         self.impronta_learner = ImprontaLearner(self.case_store, self.profile_engine)
         self.notifier = NotificationService()
         self.session_manager = SessionManager()
+        self.journey_engine = journey_engine
         self.transcriber = AudioTranscriber()
 
         self._ensure_collections()
@@ -255,6 +258,8 @@ class KairosRuntime:
         async def _ipl(s): return await impronta_learning_node(s, self.impronta_learner)
         async def _ntf(s): return await self._notify_node_async(s)
         async def _obs(s): return await obsidian_connector_node(s, self.obsidian, self.client_store)
+        async def _jin(s): return await journey_inject_node(s, self.journey_engine)
+        async def _jad(s): return await journey_advance_node(s, self.journey_engine)
 
         builder.add_node("supervisor", self._timed("supervisor", _sup))
         builder.add_node("audio", self._timed("audio", _aud))
@@ -271,6 +276,8 @@ class KairosRuntime:
         builder.add_node("impronta_learn", self._timed("impronta_learn", _ipl))
         builder.add_node("notify", self._timed("notify", _ntf))
         builder.add_node("obsidian", self._timed("obsidian", _obs))
+        builder.add_node("journey_inject", self._timed("journey_inject", _jin))
+        builder.add_node("journey_advance", self._timed("journey_advance", _jad))
 
         # D1: Conditional branching — nodos opcionales
         builder.add_edge(START, "supervisor")
@@ -291,13 +298,15 @@ class KairosRuntime:
         # Analyst: solo si hay client_id asignado (~30% de requests)
         builder.add_conditional_edges(
             "aggregate",
-            lambda s: "analyst" if self._has_client(s) else "worker",
-            {"analyst": "analyst", "worker": "worker"},
+            lambda s: "analyst" if self._has_client(s) else "journey_inject",
+            {"analyst": "analyst", "journey_inject": "journey_inject"},
         )
-        builder.add_edge("analyst", "worker")
+        builder.add_edge("analyst", "journey_inject")
+        builder.add_edge("journey_inject", "worker")
 
         builder.add_edge("worker", "validate")
-        builder.add_edge("validate", "learn")
+        builder.add_edge("validate", "journey_advance")
+        builder.add_edge("journey_advance", "learn")
         builder.add_edge("learn", "client_synth")
         builder.add_edge("client_synth", "alert_check")
         builder.add_edge("alert_check", "impronta_learn")
@@ -330,6 +339,13 @@ class KairosRuntime:
             "context": context or {},
             "next_agent": "perception",
         }
+
+        # Cambio 1: Detectar journey activo en el orchestrator
+        client_id = (context or {}).get("client_id")
+        if self.journey_engine and client_id:
+            journey_context = await self.journey_engine.get_client_journey(client_id)
+            if journey_context and journey_context.get("status") not in ("completed", "not_started", None):
+                initial["journey_context"] = journey_context
         # C1: propagar trace context al pipeline
         with TraceContext(
             session_id=session_id,

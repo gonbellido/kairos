@@ -38,6 +38,10 @@ class AgentState(TypedDict):
     user_id: str
     message: str
     context: dict[str, Any]
+    journey_context: NotRequired[dict[str, Any]]
+    journey_system_prompt: NotRequired[str]
+    journey_advanced: NotRequired[bool]
+    journey_advance_info: NotRequired[dict[str, Any]]
 
     profile: NotRequired[Profile]
     impronta: NotRequired[Impronta]

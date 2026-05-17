@@ -95,7 +95,7 @@ async def lifespan(app: FastAPI):
     logger.info("Journey engine initialized with %d templates", 
                 len(await journey_engine.list_journeys("default")))
 
-    runtime = KairosRuntime(profiles_dir=app_settings.profiles_dir, prompt_store=prompt_store)
+    runtime = KairosRuntime(profiles_dir=app_settings.profiles_dir, prompt_store=prompt_store, journey_engine=journey_engine)
     app.state.runtime = runtime
     app.state.health_checker = HealthChecker(runtime.qdrant, runtime.llm, runtime.embeddings)
     asyncio.create_task(runtime.startup_purge())

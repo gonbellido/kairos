@@ -388,6 +388,9 @@ async function sendMessage(text) {
                         }
                         bubbleEl.innerHTML = marked.parse(full);
                         msgsEl.scrollTo({top: msgsEl.scrollHeight});
+                    } else if (ev.type === 'journey_advance') {
+                        addMsg(`🧭 **Journey avanzado:** El cliente ha pasado de fase.`, 'agent');
+                        setTimeout(() => location.reload(), 3000);
                     } else if (ev.type === 'done') {
                         if (agentRow) {
                             const ts = document.createElement('span');

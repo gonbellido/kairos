@@ -89,12 +89,26 @@ async def chat_stream(req: Request, body: StreamRequest):
         try:
             log_activity("chat_message", {"client_id": body.user_id, "message": body.message[:100]})
 
+            adv_info = None
             if result.path == MessagePath.FAST:
-                response, confidence = await _fast_stream(req, body, client_id, je, result, memory_hits)
+                response, confidence, adv_info = await _fast_stream(req, body, client_id, je, result, memory_hits)
             else:
-                response, confidence = await _legacy_stream(req, body, client_id, je, runtime)
+                raw_result = await runtime.run(
+                    session_id=body.session_id,
+                    profile_id=body.profile_id,
+                    message=body.message,
+                    user_id=body.user_id,
+                    context=body.context,
+                )
+                response = raw_result.get("final_response", "")
+                confidence = raw_result.get("confidence", 0.0)
+                if raw_result.get("journey_advanced"):
+                    adv_info = raw_result.get("journey_advance_info")
 
             log_activity("agent_response", {"client_id": body.user_id, "length": len(response), "confidence": confidence})
+
+            if adv_info:
+                yield f"data: {json.dumps({'type': 'journey_advance', **adv_info})}\n\n"
 
             # Emit tokens word by word
             words = response.split(" ")
@@ -144,42 +158,25 @@ async def _fast_stream(req, body, client_id, je, result, memory_hits=None):
         pass
 
     # Journey advance
+    adv_info = None
     if client_id and je:
         try:
             cj = await je.get_client_journey(client_id)
             if cj and cj.get("journey"):
+                old_agent = cj.get("current_agent_id")
                 agents = cj["journey"].get("agents", [])
-                agent_data = next((a for a in agents if a["id"] == cj.get("current_agent_id")), None)
+                agent_data = next((a for a in agents if a["id"] == old_agent), None)
                 va = await je.validate_and_advance(client_id, response, agent_data)
                 if va.get("message") and va["message"] != response:
                     response = va["message"]
+                if va.get("advanced") or va.get("phase_completed"):
+                    new_cj = await je.get_client_journey(client_id)
+                    adv_info = {
+                        "from_agent": old_agent,
+                        "to_agent": new_cj.get("current_agent_id"),
+                        "phase": new_cj.get("current_phase_id")
+                    }
         except Exception:
             pass
 
-    return response, 0.9
-
-
-async def _legacy_stream(req, body, client_id, je, runtime):
-    result = await runtime.run(
-        session_id=body.session_id,
-        profile_id=body.profile_id,
-        message=body.message,
-        user_id=body.user_id,
-        context=body.context,
-    )
-    response = result.get("final_response", "")
-    confidence = result.get("confidence", 0.0)
-
-    if client_id and je:
-        try:
-            cj = await je.get_client_journey(client_id)
-            if cj and cj.get("journey"):
-                agents = cj["journey"].get("agents", [])
-                agent_data = next((a for a in agents if a["id"] == cj.get("current_agent_id")), None)
-                va = await je.validate_and_advance(client_id, response, agent_data)
-                if va.get("message") and va["message"] != response:
-                    response = va["message"]
-        except Exception:
-            pass
-
-    return response, confidence
+    return response, 0.9, adv_info
