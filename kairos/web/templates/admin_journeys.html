@@ -152,4 +152,306 @@ function openAgentModal(jid,pid){document.getElementById('a-id').value='';docume
 function openEditAgent(id){const d=_data[id]||{};document.getElementById('a-id').value=id;document.getElementById('a-jid').value='';document.getElementById('a-pid').value='';document.getElementById('a-modal-title').textContent='Editar Agente';document.getElementById('a-submit').textContent='Guardar';document.getElementById('a-name').value=d.name||'';document.getElementById('a-role').value=d.role||'';document.getElementById('a-goal').value=d.goal||'';document.getElementById('a-prompt').value=(d.system_prompt||'').replace(/\\n/g,'\n');document.getElementById('a-instr').value=(d.instructions||'').replace(/\\n/g,'\n');document.getElementById('a-tags').value=JSON.stringify(d.allowed_tags||[]);document.getElementById('a-schema').value=JSON.stringify(d.output_schema||{});document.getElementById('agent-modal').classList.remove('hidden')}
 document.getElementById('agent-form').addEventListener('submit',async e=>{e.preventDefault();const aid=document.getElementById('a-id').value;const url=aid?'/api/v1/journeys/agents/'+aid:'/api/v1/journeys/'+document.getElementById('a-jid').value+'/agents';const m=aid?'PUT':'POST';let tags=[];let schema={};try{tags=JSON.parse(document.getElementById('a-tags').value)}catch(e){}try{schema=JSON.parse(document.getElementById('a-schema').value)}catch(e){}const body={name:document.getElementById('a-name').value,role:document.getElementById('a-role').value,goal:document.getElementById('a-goal').value,system_prompt:document.getElementById('a-prompt').value,instructions:document.getElementById('a-instr').value,allowed_tags:tags,output_schema:schema};if(!aid){body.phase_id=document.getElementById('a-pid').value;body.order_index=0}const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(r.ok)location.reload();else{const s=document.getElementById('a-status');s.classList.remove('hidden');s.textContent='Error';s.style.color='var(--danger)'}});
 </script>
+<div id="architect-panel" style="position: fixed; right: -400px; top: 0; width: 400px; height: 100vh; background: var(--bg-primary); border-left: 1px solid var(--border-default); z-index: 1000; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -4px 0 15px rgba(0,0,0,0.1);">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 1.1rem; font-weight: 600;">Journey Architect</h2>
+        <button onclick="toggleArchitect()" class="btn btn-ghost btn-sm">&times;</button>
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: var(--space-4);">
+        <div class="form-group">
+            <label class="label">Diseña tu journey con IA</label>
+            <textarea id="arch-prompt" class="input" rows="4" placeholder="Describe el journey que querés crear..."></textarea>
+            <button onclick="buildJourneyAI()" id="btn-arch-build" class="btn btn-primary btn-sm mt-2 w-full">Generar con IA</button>
+        </div>
+
+        <div id="arch-preview" class="hidden mt-4">
+            <h3 class="text-sm font-semibold mb-2">Preview del Journey</h3>
+            <div id="arch-preview-content" class="text-xs p-3 bg-tertiary border rounded" style="max-height: 300px; overflow-y: auto;"></div>
+            <div id="arch-gaps" class="mt-2"></div>
+            <button onclick="createJourneyAI()" class="btn btn-teal btn-sm mt-3 w-full">Crear Journey</button>
+        </div>
+
+        <div class="mt-8 border-top pt-4">
+            <h3 class="text-sm font-semibold mb-2">Mi Metodología</h3>
+            <div id="methodology-list" class="space-y-2 mb-4"></div>
+            <div class="form-group">
+                <input type="text" id="met-title" class="input text-sm" placeholder="Título del doc...">
+                <textarea id="met-content" class="input text-sm mt-1" rows="3" placeholder="Contenido de tu metodología..."></textarea>
+                <button onclick="addMethodology()" class="btn btn-ghost btn-sm mt-1 w-full">Agregar Documento</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="architect-toggle" onclick="toggleArchitect()" style="position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px; border-radius: 25px; background: var(--accent-teal); color: white; display: flex; items-center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 999; font-size: 24px;">
+    ◈
+</div>
+
+<script>
+function toggleArchitect() {
+    const panel = document.getElementById('architect-panel');
+    if (panel.style.right === '0px') {
+        panel.style.right = '-400px';
+    } else {
+        panel.style.right = '0px';
+        loadMethodology();
+    }
+}
+
+async function loadMethodology() {
+    const r = await fetch('/api/v1/architect/methodology');
+    const d = await r.json();
+    const list = document.getElementById('methodology-list');
+    list.innerHTML = '';
+    if (d.docs) {
+        d.docs.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-2 bg-tertiary rounded border';
+            div.innerHTML = `<span class="text-xs truncate" title="${doc.title}">${doc.title || 'Sin título'}</span>
+                            <button onclick="deleteMethodology('${doc.id}')" class="text-danger border-none bg-none cursor-pointer">×</button>`;
+            list.appendChild(div);
+        });
+    }
+}
+
+async function addMethodology() {
+    const title = document.getElementById('met-title').value;
+    const content = document.getElementById('met-content').value;
+    if(!content) return;
+    const r = await fetch('/api/v1/architect/methodology', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, content})
+    });
+    if(r.ok) {
+        document.getElementById('met-title').value = '';
+        document.getElementById('met-content').value = '';
+        loadMethodology();
+    }
+}
+
+async function deleteMethodology(id) {
+    if(!confirm('¿Eliminar este documento de metodología?')) return;
+    const r = await fetch(`/api/v1/architect/methodology/${id}`, {method: 'DELETE'});
+    if(r.ok) loadMethodology();
+}
+
+let currentSpec = null;
+
+async function buildJourneyAI() {
+    const prompt = document.getElementById('arch-prompt').value;
+    if(!prompt) return;
+    const btn = document.getElementById('btn-arch-build');
+    btn.disabled = true;
+    btn.innerText = 'Generando...';
+    try {
+        const r = await fetch('/api/v1/architect/build', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt})
+        });
+        const d = await r.json();
+        currentSpec = d.journey;
+
+        const preview = document.getElementById('arch-preview');
+        preview.classList.remove('hidden');
+
+        const content = document.getElementById('arch-preview-content');
+        let html = `<strong>${d.journey.name}</strong><br><small>${d.journey.objective}</small><hr class="my-2">`;
+        if (d.journey.phases) {
+            d.journey.phases.forEach(p => {
+                html += `<div class="mt-1">F${p.order_index}: ${p.name}</div>`;
+            });
+        }
+        content.innerHTML = html;
+
+        const gaps = document.getElementById('arch-gaps');
+        gaps.innerHTML = '';
+        (d.gaps_detected || []).forEach(gap => {
+            const span = document.createElement('span');
+            span.className = 'badge badge-neutral text-xs mr-1 mb-1';
+            span.style.background = '#fef3c7';
+            span.style.color = '#92400e';
+            span.innerText = gap;
+            gaps.appendChild(span);
+        });
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Generando con IA';
+    }
+}
+
+async function createJourneyAI() {
+    if(!currentSpec) return;
+    const r = await fetch('/api/v1/architect/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({journey_spec: currentSpec})
+    });
+    if(r.ok) location.reload();
+}
+
+async function explainJourney(id) {
+    const r = await fetch(`/api/v1/architect/explain/${id}`, {method: 'POST'});
+    const d = await r.json();
+    alert("Explicación del Journey:\n\n" + d.explanation);
+}
+
+async function improveJourney(id) {
+    const r = await fetch(`/api/v1/architect/suggest/${id}`);
+    const d = await r.json();
+    alert("Sugerencias de mejora:\n\n" + d.suggestions.join('\n'));
+}
+</script>
 {% endblock %}
+<div id="architect-panel" style="position: fixed; right: -400px; top: 0; width: 400px; height: 100vh; background: var(--bg-primary); border-left: 1px solid var(--border-default); z-index: 1000; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -4px 0 15px rgba(0,0,0,0.1);">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 1.1rem; font-weight: 600;">Journey Architect</h2>
+        <button onclick="toggleArchitect()" class="btn btn-ghost btn-sm">&times;</button>
+    </div>
+    <div style="flex: 1; overflow-y: auto; padding: var(--space-4);">
+        <div class="form-group">
+            <label class="label">Diseña tu journey con IA</label>
+            <textarea id="arch-prompt" class="input" rows="4" placeholder="Describe el journey que querés crear..."></textarea>
+            <button onclick="buildJourneyAI()" id="btn-arch-build" class="btn btn-primary btn-sm mt-2 w-full">Generar con IA</button>
+        </div>
+
+        <div id="arch-preview" class="hidden mt-4">
+            <h3 class="text-sm font-semibold mb-2">Preview del Journey</h3>
+            <div id="arch-preview-content" class="text-xs p-3 bg-tertiary border rounded" style="max-height: 300px; overflow-y: auto;"></div>
+            <div id="arch-gaps" class="mt-2"></div>
+            <button onclick="createJourneyAI()" class="btn btn-teal btn-sm mt-3 w-full">Crear Journey</button>
+        </div>
+
+        <div class="mt-8 border-top pt-4">
+            <h3 class="text-sm font-semibold mb-2">Mi Metodología</h3>
+            <div id="methodology-list" class="space-y-2 mb-4"></div>
+            <div class="form-group">
+                <input type="text" id="met-title" class="input text-sm" placeholder="Título del doc...">
+                <textarea id="met-content" class="input text-sm mt-1" rows="3" placeholder="Contenido de tu metodología..."></textarea>
+                <button onclick="addMethodology()" class="btn btn-ghost btn-sm mt-1 w-full">Agregar Documento</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="architect-toggle" onclick="toggleArchitect()" style="position: fixed; right: 20px; bottom: 20px; width: 50px; height: 50px; border-radius: 25px; background: var(--accent-teal); color: white; display: flex; items-center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 999; font-size: 24px;">
+    ◈
+</div>
+
+<script>
+function toggleArchitect() {
+    const panel = document.getElementById('architect-panel');
+    if (panel.style.right === '0px') {
+        panel.style.right = '-400px';
+    } else {
+        panel.style.right = '0px';
+        loadMethodology();
+    }
+}
+
+async function loadMethodology() {
+    const r = await fetch('/api/v1/architect/methodology');
+    const d = await r.json();
+    const list = document.getElementById('methodology-list');
+    list.innerHTML = '';
+    if (d.docs) {
+        d.docs.forEach(doc => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-2 bg-tertiary rounded border';
+            div.innerHTML = `<span class="text-xs truncate" title="${doc.title}">${doc.title || 'Sin título'}</span>
+                            <button onclick="deleteMethodology('${doc.id}')" class="text-danger border-none bg-none cursor-pointer">×</button>`;
+            list.appendChild(div);
+        });
+    }
+}
+
+async function addMethodology() {
+    const title = document.getElementById('met-title').value;
+    const content = document.getElementById('met-content').value;
+    if(!content) return;
+    const r = await fetch('/api/v1/architect/methodology', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, content})
+    });
+    if(r.ok) {
+        document.getElementById('met-title').value = '';
+        document.getElementById('met-content').value = '';
+        loadMethodology();
+    }
+}
+
+async function deleteMethodology(id) {
+    if(!confirm('¿Eliminar este documento de metodología?')) return;
+    const r = await fetch(`/api/v1/architect/methodology/${id}`, {method: 'DELETE'});
+    if(r.ok) loadMethodology();
+}
+
+let currentSpec = null;
+
+async function buildJourneyAI() {
+    const prompt = document.getElementById('arch-prompt').value;
+    if(!prompt) return;
+    const btn = document.getElementById('btn-arch-build');
+    btn.disabled = true;
+    btn.innerText = 'Generando...';
+    try {
+        const r = await fetch('/api/v1/architect/build', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt})
+        });
+        const d = await r.json();
+        currentSpec = d.journey;
+
+        const preview = document.getElementById('arch-preview');
+        preview.classList.remove('hidden');
+
+        const content = document.getElementById('arch-preview-content');
+        let html = `<strong>${d.journey.name}</strong><br><small>${d.journey.objective}</small><hr class="my-2">`;
+        if (d.journey.phases) {
+            d.journey.phases.forEach(p => {
+                html += `<div class="mt-1">F${p.order_index}: ${p.name}</div>`;
+            });
+        }
+        content.innerHTML = html;
+
+        const gaps = document.getElementById('arch-gaps');
+        gaps.innerHTML = '';
+        (d.gaps_detected || []).forEach(gap => {
+            const span = document.createElement('span');
+            span.className = 'badge badge-neutral text-xs mr-1 mb-1';
+            span.style.background = '#fef3c7';
+            span.style.color = '#92400e';
+            span.innerText = gap;
+            gaps.appendChild(span);
+        });
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Generando con IA';
+    }
+}
+
+async function createJourneyAI() {
+    if(!currentSpec) return;
+    const r = await fetch('/api/v1/architect/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({journey_spec: currentSpec})
+    });
+    if(r.ok) location.reload();
+}
+
+async function explainJourney(id) {
+    const r = await fetch(`/api/v1/architect/explain/${id}`, {method: 'POST'});
+    const d = await r.json();
+    alert("Explicación del Journey:\n\n" + d.explanation);
+}
+
+async function improveJourney(id) {
+    const r = await fetch(`/api/v1/architect/suggest/${id}`);
+    const d = await r.json();
+    alert("Sugerencias de mejora:\n\n" + d.suggestions.join('\n'));
+}
+</script>

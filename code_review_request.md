@@ -1,16 +1,21 @@
-# Code Review Request - KAIROS Pre-Deploy Audit Fixes
+# Code Review Request: Journey Architect Agent
 
-## Summary of Changes
-1.  **Alembic Migrations**: Fixed migration `g2h3i4j5k6l7` by splitting multi-statement `op.execute()` calls (asyncpg limitation) and correcting ID types to `TEXT` for consistency.
-2.  **Docker & Deploy**: Updated `docker-compose.prod.yml` with healthchecks. Updated `deploy.sh` and `deploy_v2.sh` to include `--env-file .env.production` for proper variable interpolation.
-3.  **FastAPI Resilience**: Added `try-except` blocks around DB seeding during startup to prevent silent crashes.
-4.  **Memory Stores**: Fixed a regression where searching with an empty query would use a zero vector. Now correctly falls back to `scroll`.
-5.  **Health Checker**: Fixed `health_checker.py` to correctly test embeddings without blocking the event loop.
-6.  **Nginx**: Added a default catch-all returning 502 to prevent infinite redirection loops.
+I have implemented the Journey Architect Agent, which allows coaches to create and manage structured journeys using natural language, informed by their own methodologies.
 
-## Verification Done
-- Created and ran `tests/test_regression_zero_vector.py` to verify the memory store fallback logic.
-- Verified file changes with `read_file` and `grep`.
-- Audit report generated in `PRE_DEPLOY_AUDIT_REPORT.md`.
+## Key Changes:
+- **Database**: Added `coach_methodology_docs` table and SQLAlchemy model. Created Alembic migration `k6l7m8n9o0p1`.
+- **Knowledge Base**: Defined `JOURNEY_SCHEMA_DOC` and `JOURNEY_ARCHITECT_SYSTEM_PROMPT` in `kairos/engine/journey_architect/knowledge.py`. This serves as the agent's brain.
+- **Store**: Implemented `CoachMethodologyStore` for per-coach methodology document management.
+- **Agent**: Created `JourneyArchitect` in `kairos/engine/journey_architect/architect.py`. It handles LLM interaction, spec validation, and sequence creation (Journey -> Phase -> Agent).
+- **API**: Added endpoints in `kairos/api/routes/architect.py` for building, creating, explaining, and methodology management. Registered in `server.py`.
+- **UI**: Added a sliding "Journey Architect" panel in `admin_journeys.html`, methodology list, preview of generated journeys, and new actions (Explain/Improve) for existing journeys.
 
-Please review for any missed deployment risks.
+## Testing:
+- Unit tests for `validate_journey_spec` and retry logic in `tests/test_journey_architect.py` passed.
+- Attempted frontend verification but environment constraints (Docker pull limits) prevented full app startup.
+
+## Reflections:
+- The agent uses a structured JSON output with error correction loops (up to 3 attempts).
+- Consistencies between `tag_mappings`, `collects_fields`, and `output_schema` are validated both in the agent and by the API.
+
+Please review the architectural choices and the consistency of the journey structure.

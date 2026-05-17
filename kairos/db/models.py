@@ -177,3 +177,12 @@ class JourneyEventModel(Base):
     payload_data = Column(JSON, default=dict)
     trace_id = Column(String, default="")
     created_at = Column(DateTime(timezone=True), default=lambda: _utcnow())
+
+class CoachMethodologyDocModel(Base):
+    __tablename__ = "coach_methodology_docs"
+    id = Column(String, primary_key=True)
+    coach_id = Column(String, ForeignKey("coaches.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String, nullable=False, default="")
+    content = Column(Text, nullable=False)
+    source = Column(String, default="text")
+    created_at = Column(DateTime(timezone=True), default=lambda: _utcnow())
