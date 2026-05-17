@@ -25,6 +25,7 @@ from kairos.api.rate_limiter import RateLimiter
 from kairos.db.session import create_session_factory
 from .routes import chat, stream, clients, feedback, sessions, upload, materials, coach_assist, web, monitor, voice
 from .routes import settings as settings_routes
+from . import architect as architect_routes
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,7 @@ async def lifespan(app: FastAPI):
     # Fase I: Journey system — siempre activo
     journey_engine = JourneyEngine(session_factory)
     app.state.journey_engine = journey_engine
+    app.state._session_factory = session_factory
     try:
         await journey_engine.seed_defaults()
     except Exception as e:
@@ -242,6 +244,7 @@ def create_app() -> FastAPI:
     app.include_router(settings_routes.router, prefix="/api/v1")
     app.include_router(monitor.router)
     app.include_router(voice.router, prefix="/api/v1")
+    app.include_router(architect_routes.router)
 
     from pathlib import Path
     from fastapi.staticfiles import StaticFiles
