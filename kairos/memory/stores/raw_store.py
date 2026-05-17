@@ -45,15 +45,24 @@ class RawStore:
         self, query: str, profile_id: str, client_id: str = "", coach_id: str = "", top_k: int = 5
     ) -> list[RawMemory]:
         query = (query or "").strip()
-        if not query:
-            vector = [0.0] * self._embeddings.dimensions
-        else:
-            vector = await self._embeddings.embed(query[:2000])
         must = [qdrant_models.FieldCondition(key="profile_id", match=qdrant_models.MatchValue(value=profile_id))]
         if client_id:
             must.append(qdrant_models.FieldCondition(key="client_id", match=qdrant_models.MatchValue(value=client_id)))
         if coach_id:
             must.append(qdrant_models.FieldCondition(key="coach_id", match=qdrant_models.MatchValue(value=coach_id)))
+
+        if not query:
+            # Fallback to scroll if no query text (regression fix)
+            results, _ = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=qdrant_models.Filter(must=must),
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            return [RawMemory(**p.payload) for p in results]
+
+        vector = await self._embeddings.embed(query[:2000])
         results = self._client.query_points(
             collection_name=COLLECTION,
             query=vector,
@@ -68,15 +77,30 @@ class RawStore:
     ) -> list[dict]:
         """Búsqueda semántica que retorna payloads con score. Para coach assistant RAG."""
         query_text = (query_text or "").strip()
-        if not query_text:
-            vector = [0.0] * self._embeddings.dimensions
-        else:
-            vector = await self._embeddings.embed(query_text[:2000])
         must = [qdrant_models.FieldCondition(key="profile_id", match=qdrant_models.MatchValue(value=profile_id))]
         if client_id:
             must.append(qdrant_models.FieldCondition(key="client_id", match=qdrant_models.MatchValue(value=client_id)))
         if coach_id:
             must.append(qdrant_models.FieldCondition(key="coach_id", match=qdrant_models.MatchValue(value=coach_id)))
+
+        if not query_text:
+            # Fallback to scroll if no query text
+            results, _ = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=qdrant_models.Filter(must=must),
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            items = []
+            for p in results:
+                item = dict(p.payload or {})
+                item["_point_id"] = str(p.id) if p.id else ""
+                item["_score"] = 1.0
+                items.append(item)
+            return items
+
+        vector = await self._embeddings.embed(query_text[:2000])
         results = self._client.query_points(
             collection_name=COLLECTION,
             query=vector,

@@ -63,22 +63,22 @@ fi
 
 # ── Pull images ──
 echo -e "\n${YELLOW}[4/7]${NC} Pulling Docker images..."
-docker compose -f docker-compose.prod.yml pull
+docker compose --env-file .env.production -f docker-compose.prod.yml pull
 
 # ── Build app ──
 echo -e "\n${YELLOW}[5/7]${NC} Building KAIROS app..."
-docker compose -f docker-compose.prod.yml build app --no-cache
+docker compose --env-file .env.production -f docker-compose.prod.yml build app --no-cache
 
 # ── Start services ──
 echo -e "\n${YELLOW}[6/7]${NC} Starting services..."
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 
 # ── Run migrations ──
 echo -e "\n${YELLOW}[7/7]${NC} Running database migrations..."
 sleep 10  # wait for postgres
-docker compose -f docker-compose.prod.yml exec -T app alembic -c /app/kairos/db/alembic.ini upgrade head || {
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T app alembic -c /app/kairos/db/alembic.ini upgrade head || {
     echo -e "${YELLOW}⚠ Migration failed (may need to retry). Run:${NC}"
-    echo "  docker compose -f docker-compose.prod.yml exec app alembic -c /app/kairos/db/alembic.ini upgrade head"
+    echo "  docker compose --env-file .env.production -f docker-compose.prod.yml exec app alembic -c /app/kairos/db/alembic.ini upgrade head"
 }
 
 # ── Done ──
@@ -96,5 +96,5 @@ echo "After DNS is configured, get SSL with:"
 echo "  sudo certbot --nginx -d coach.YOUR_DOMAIN -d api.YOUR_DOMAIN -d storage.YOUR_DOMAIN -d s3.YOUR_DOMAIN"
 echo ""
 echo "Check status:"
-echo "  docker compose -f docker-compose.prod.yml ps"
+echo "  docker compose --env-file .env.production -f docker-compose.prod.yml ps"
 echo "  curl http://localhost:8000/health"

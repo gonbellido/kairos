@@ -60,12 +60,25 @@ class KnowledgeStore:
         return doc_id
 
     async def search(self, query: str, top_k: int = 5, profile_id: str | None = None) -> list[dict]:
-        vector = await self._embeddings.embed(query)
+        query = (query or "").strip()
         qfilter = None
         if profile_id:
             qfilter = qdrant_models.Filter(
                 must=[qdrant_models.FieldCondition(key="metadata.profile_id", match=qdrant_models.MatchValue(value=profile_id))]
             )
+
+        if not query:
+            results, _ = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=qfilter,
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            return [{"id": p.payload["id"], "content": p.payload["content"],
+                     "metadata": p.payload.get("metadata", {}), "score": 1.0} for p in results]
+
+        vector = await self._embeddings.embed(query)
         results = self._client.query_points(
             collection_name=COLLECTION, query=vector,
             query_filter=qfilter, limit=top_k, with_payload=True,

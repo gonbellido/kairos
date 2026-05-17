@@ -20,7 +20,7 @@ def upgrade() -> None:
         sa.Column('agent', sa.String(), nullable=False),
         sa.Column('description', sa.String(), nullable=True, server_default=''),
         sa.Column('prompt_template', sa.Text(), nullable=False),
-        sa.Column('lang', sa.String(), nullable=True, server_default='es'),
+        sa.Column('lang', sa.String(), nullable=True, server_default=sa.text("'es'")),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
         sa.PrimaryKeyConstraint('id'),

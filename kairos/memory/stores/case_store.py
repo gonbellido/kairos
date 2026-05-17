@@ -64,11 +64,19 @@ class CaseStore:
         top_k: int = 10, score_threshold: float = 0.0,
     ) -> list[ScoredCase]:
         query = (query or "").strip()
-        if not query:
-            vector = [0.0] * self._embeddings.dimensions
-        else:
-            vector = await self._embeddings.embed(query)
         qfilter = self._build_filter(profile_id, client_id, filters)
+
+        if not query:
+            results, _ = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=qfilter,
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            return [ScoredCase(case=CaseMemory(**p.payload), semantic_score=1.0) for p in results]
+
+        vector = await self._embeddings.embed(query)
         results = self._client.query_points(
             collection_name=COLLECTION, query=vector,
             query_filter=qfilter, limit=top_k,

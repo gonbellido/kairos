@@ -70,17 +70,26 @@ async def lifespan(app: FastAPI):
     session_factory = create_session_factory()
     coach_db = CoachDBA(session_factory)
     app.state.coach_db = coach_db
-    await coach_db.seed_defaults()
+    try:
+        await coach_db.seed_defaults()
+    except Exception as e:
+        logger.error("Failed to seed coaches: %s", e)
 
     # Prompt management
     prompt_store = PromptStore(session_factory)
     app.state.prompt_store = prompt_store
-    await prompt_store.seed_defaults()
+    try:
+        await prompt_store.seed_defaults()
+    except Exception as e:
+        logger.error("Failed to seed prompts: %s", e)
 
     # Fase I: Journey system — siempre activo
     journey_engine = JourneyEngine(session_factory)
     app.state.journey_engine = journey_engine
-    await journey_engine.seed_defaults()
+    try:
+        await journey_engine.seed_defaults()
+    except Exception as e:
+        logger.error("Failed to seed journeys: %s", e)
     logger.info("Journey engine initialized with %d templates", 
                 len(await journey_engine.list_journeys("default")))
 

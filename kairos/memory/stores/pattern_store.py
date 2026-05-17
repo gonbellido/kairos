@@ -1,5 +1,5 @@
+from datetime import datetime
 from uuid import uuid4
-from typing import Any
 
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qdrant_models
@@ -41,12 +41,23 @@ class PatternStore:
         return pattern.id
 
     async def search(self, query: str, profile_id: str, top_k: int = 5) -> list[PatternMemory]:
+        query = (query or "").strip()
+        must = [qdrant_models.FieldCondition(key="profile_id", match=qdrant_models.MatchValue(value=profile_id))]
+
+        if not query:
+            results, _ = self._client.scroll(
+                collection_name=COLLECTION,
+                scroll_filter=qdrant_models.Filter(must=must),
+                limit=top_k,
+                with_payload=True,
+                with_vectors=False,
+            )
+            return [PatternMemory(**p.payload) for p in results]
+
         vector = await self._embeddings.embed(query)
         results = self._client.query_points(
             collection_name=COLLECTION, query=vector,
-            query_filter=qdrant_models.Filter(
-                must=[qdrant_models.FieldCondition(key="profile_id", match=qdrant_models.MatchValue(value=profile_id))]
-            ),
+            query_filter=qdrant_models.Filter(must=must),
             limit=top_k, with_payload=True,
         )
         return [PatternMemory(**p.payload) for p in results.points]
