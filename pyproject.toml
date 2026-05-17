@@ -27,6 +27,7 @@ dependencies = [
     "alembic>=1.13.0",
     "numpy>=1.26.0",
     "python-telegram-bot>=20.0",
+    "minio>=7.2.0",
 ]
 
 [project.optional-dependencies]
