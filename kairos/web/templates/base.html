@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="{{ lang or 'es' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAIROS — {{ title }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body class="app">
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/coach" class="topbar-logo">KAIROS</a>
+            <span class="badge badge-teal">coach</span>
+        </div>
+        <div class="topbar-center"></div>
+        <div class="topbar-right">
+            {% if coach %}
+            <span class="text-sm lg-only">{{ coach.name }}</span>
+            <a href="/coach" class="btn btn-ghost btn-sm">Dashboard</a>
+            <a href="/logout" class="btn btn-ghost btn-sm text-danger">Salir</a>
+            {% endif %}
+        </div>
+    </header>
+    <div class="layout">
+        {% if coach %}
+        <nav class="sidebar">
+            <div class="sidebar-section">
+                <a href="/coach" class="sidebar-item active">
+                    <span class="sidebar-icon">⌂</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/coach/assistant" class="sidebar-item">
+                    <span class="sidebar-icon">◈</span>
+                    <span>Asistente IA</span>
+                </a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Coach</div>
+                <a href="/coach/imprint" class="sidebar-item">
+                    <span class="sidebar-icon">🎭</span>
+                    <span>Impronta</span>
+                </a>
+                <a href="/coach/settings" class="sidebar-item">
+                    <span class="sidebar-icon">⚙</span>
+                    <span>Configuración</span>
+                </a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Recursos</div>
+                <a href="/coach/materials" class="sidebar-item">
+                    <span class="sidebar-icon">▥</span>
+                    <span>Materiales</span>
+                </a>
+                <a href="/coach/obsidian" class="sidebar-item">
+                    <span class="sidebar-icon">▦</span>
+                    <span>Obsidian</span>
+                </a>
+            </div>
+            <div class="sidebar-section">
+                <div class="sidebar-label">Monitoreo</div>
+                <a href="/coach/alerts" class="sidebar-item">
+                    <span class="sidebar-icon">◉</span>
+                    <span>Alertas</span>
+                </a>
+            </div>
+            {% if coach.role == 'admin' %}
+            <div class="sidebar-section">
+                <div class="sidebar-label">Admin</div>
+                <a href="/admin" class="sidebar-item">
+                    <span class="sidebar-icon">⚙</span>
+                    <span>Coaches</span>
+                </a>
+                <a href="/admin/journeys" class="sidebar-item">
+                    <span class="sidebar-icon">◈</span>
+                    <span>Journeys</span>
+                </a>
+                <a href="/admin/prompts" class="sidebar-item">
+                    <span class="sidebar-icon">◉</span>
+                    <span>Prompts</span>
+                </a>
+                <a href="/admin/channels" class="sidebar-item">
+                    <span class="sidebar-icon">↗</span>
+                    <span>Canales</span>
+                </a>
+                <a href="/admin/monitor" class="sidebar-item">
+                    <span class="sidebar-icon">◷</span>
+                    <span>Monitor</span>
+                </a>
+            </div>
+            {% endif %}
+            <div class="mt-4" style="margin-top: auto;">
+                <a href="/logout" class="sidebar-item text-danger">
+                    <span class="sidebar-icon">⟵</span>
+                    <span>Salir</span>
+                </a>
+            </div>
+        </nav>
+        {% endif %}
+        <main class="main">
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <script>
+    // Highlight active sidebar item based on current path
+    (function() {
+        const path = window.location.pathname;
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.classList.remove('active');
+            const href = item.getAttribute('href');
+            if (href && path.startsWith(href) && href !== '/coach') {
+                item.classList.add('active');
+            }
+        });
+        // Dashboard is active only at exact /coach
+        if (path === '/coach') {
+            const dash = document.querySelector('.sidebar-item[href="/coach"]');
+            if (dash) dash.classList.add('active');
+        }
+    })();
+    </script>
+</body>
+</html>

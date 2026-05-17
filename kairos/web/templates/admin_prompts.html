@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb">
+            <a href="/admin">← Admin</a>
+        </div>
+        <h1>Gestión de Prompts</h1>
+        <p class="body" style="margin-top: var(--space-1);">Edita los prompts del sistema que controlan el comportamiento de cada agente</p>
+    </div>
+</div>
+
+<div class="flex flex-col gap-4">
+    {% for p in prompts %}
+    <div class="card" style="padding: 0; overflow: hidden; border-left: 3px solid {% if p.is_custom %}var(--accent-teal){% else %}var(--border-default){% endif %};">
+        <div class="flex items-center justify-between" style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <div class="flex items-center gap-3">
+                <span style="font-size: 18px; opacity: 0.7;">
+                    {% if p.agent == 'supervisor' %}◈
+                    {% elif p.agent == 'analyst' %}◉
+                    {% elif p.agent == 'validator' %}◆
+                    {% elif p.agent == 'classifier' %}◇
+                    {% elif p.agent == 'synthesizer' %}◉
+                    {% elif p.agent == 'coach_assistant' %}◈
+                    {% endif %}
+                </span>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px; text-transform: capitalize;">{{ p.agent.replace('_', ' ') }}</div>
+                    <div class="text-sm">{{ p.description }}</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                {% if p.is_custom %}
+                <span class="badge badge-teal">custom</span>
+                {% else %}
+                <span class="badge badge-neutral">default</span>
+                {% endif %}
+                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-ghost btn-sm" id="edit-btn-{{ p.agent }}">Editar</button>
+                {% if p.is_custom %}
+                <button onclick="resetPrompt('{{ p.agent }}')" class="btn btn-ghost btn-sm text-danger">Reset</button>
+                {% endif %}
+            </div>
+        </div>
+
+        <div id="preview-{{ p.agent }}" style="padding: var(--space-4);">
+            <pre style="white-space: pre-wrap; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); max-height: 120px; overflow-y: auto; line-height: 1.5;">{{ p.prompt_template }}</pre>
+        </div>
+
+        <div id="editor-{{ p.agent }}" class="hidden" style="padding: var(--space-4);">
+            <textarea id="textarea-{{ p.agent }}" class="input"
+                      style="min-height: 200px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;"
+            >{{ p.prompt_template }}</textarea>
+            <div class="flex gap-2 mt-3">
+                <button onclick="savePrompt('{{ p.agent }}')" class="btn btn-primary btn-sm">Guardar</button>
+                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-secondary btn-sm">Cancelar</button>
+            </div>
+            <div id="status-{{ p.agent }}" class="hidden text-sm mt-2"></div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mt-6" style="border-left: 3px solid var(--accent-indigo);">
+    <h3 class="mb-2">Variables disponibles</h3>
+    <p class="body" style="margin-bottom: var(--space-3);">Cada prompt acepta variables específicas que se inyectan en tiempo de ejecución:</p>
+    <div class="grid grid-2 gap-3 text-sm">
+        {% for var_info in [
+            ('analyst', '{state}, {case_count}, {avg_score}, {client_info}, {patterns}'),
+            ('validator', '{profile}, {rules}, {message}, {response}'),
+            ('classifier', '{message}'),
+            ('synthesizer', '{previous_state}, {last_message}, {coach_response}'),
+            ('coach_assistant', '{clientes_context}, {materiales_context}'),
+        ] %}
+        <div>
+            <span class="badge badge-indigo" style="margin-bottom: 4px;">{{ var_info[0] }}</span>
+            <div class="text-mono" style="font-size: 11px; color: var(--text-muted);">{{ var_info[1] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function toggleEdit(agent) {
+    const preview = document.getElementById('preview-' + agent);
+    const editor = document.getElementById('editor-' + agent);
+    const btn = document.getElementById('edit-btn-' + agent);
+    if (editor.classList.contains('hidden')) {
+        preview.classList.add('hidden');
+        editor.classList.remove('hidden');
+        btn.textContent = 'Cancelar';
+    } else {
+        preview.classList.remove('hidden');
+        editor.classList.add('hidden');
+        btn.textContent = 'Editar';
+    }
+}
+
+async function savePrompt(agent) {
+    const textarea = document.getElementById('textarea-' + agent);
+    const status = document.getElementById('status-' + agent);
+    status.classList.remove('hidden');
+    status.textContent = 'Guardando...';
+    status.style.color = 'var(--text-muted)';
+
+    try {
+        const res = await fetch('/admin/prompts/' + agent, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prompt_template: textarea.value})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            status.textContent = 'Guardado correctamente';
+            status.style.color = 'var(--success)';
+            setTimeout(() => location.reload(), 800);
+        } else {
+            status.textContent = 'Error al guardar';
+            status.style.color = 'var(--danger)';
+        }
+    } catch(e) {
+        status.textContent = 'Error de conexión';
+        status.style.color = 'var(--danger)';
+    }
+}
+
+async function resetPrompt(agent) {
+    if (!confirm('¿Restaurar el prompt "' + agent + '" a su valor por defecto?')) return;
+    try {
+        const res = await fetch('/admin/prompts/' + agent + '/reset', {method: 'POST'});
+        const data = await res.json();
+        if (data.ok) location.reload();
+    } catch(e) {}
+}
+</script>
+{% endblock %}

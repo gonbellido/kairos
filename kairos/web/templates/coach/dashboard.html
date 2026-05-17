@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Clientes</h1>
+    </div>
+    <div class="page-header-right">
+        <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary btn-sm">+ Nuevo cliente</button>
+    </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="card mb-4" style="padding: var(--space-3) var(--space-4);">
+    <div class="flex items-center gap-3 flex-wrap">
+        <input type="text" id="search-input" class="input" placeholder="Buscar por nombre..." style="max-width: 250px;" oninput="filterTable()">
+        {% if coach.role == 'admin' %}
+        <select id="filter-coach" class="input" style="max-width: 200px;" onchange="filterTable()">
+            <option value="">Todos los coaches</option>
+            {% for cid, cname in coach_map.items() %}
+            <option value="{{ cname }}">{{ cname }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+        <select id="filter-journey" class="input" style="max-width: 220px;" onchange="filterTable()">
+            <option value="">Todos los journeys</option>
+            {% for j in journeys %}
+            <option value="{{ j.name }}">{{ j.name[:30] }}</option>
+            {% endfor %}
+        </select>
+        <span class="text-sm" style="color: var(--text-muted); margin-left: auto;" id="result-count">{{ clients|length }} clientes</span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-4 mb-4">
+    <div class="stat-card">
+        <div class="stat-value">{{ clients|length }}</div>
+        <div class="stat-label">Clientes</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ alerts_count|default(0) }}</div>
+        <div class="stat-label">Alertas activas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ client_journeys|length }}</div>
+        <div class="stat-label">Con journey</div>
+    </div>
+    <div class="stat-card">
+        {% set total = namespace(n=0) %}
+        {% for c in clients %}{% set total.n = total.n + c.historial.get('mensajes', 0) %}{% endfor %}
+        <div class="stat-value">{{ total.n }}</div>
+        <div class="stat-label">Interacciones</div>
+    </div>
+</div>
+
+<!-- Client Table -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <table class="table" id="client-table">
+        <thead>
+            <tr>
+                <th>Cliente</th>
+                {% if coach.role == 'admin' %}<th>Coach</th>{% endif %}
+                <th>Estado</th>
+                <th>Score</th>
+                <th>Journey</th>
+                <th>Progreso</th>
+                <th>Sesiones</th>
+                <th>Acceso</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in clients %}
+            <tr data-name="{{ c.nombre|lower }}" data-coach="{{ coach_map.get(c.coach_id, '') or '' }}" data-journey="">
+                <td>
+                    <a href="/coach/client/{{ c.id }}" style="font-weight: 500; color: var(--text-primary);">{{ c.nombre }}</a>
+                </td>
+                {% if coach.role == 'admin' %}
+                <td><span class="badge badge-neutral">{{ coach_map.get(c.coach_id, '?') }}</span></td>
+                {% endif %}
+                <td>
+                    <span class="badge {% if c.estado_actual.emocional == 'positivo' or c.estado_actual.emocional == 'calma' %}badge-success{% elif c.estado_actual.emocional == 'crisis' %}badge-danger{% else %}badge-neutral{% endif %}" style="font-size: 11px;">{{ c.estado_actual.emocional[:15] }}</span>
+                </td>
+                <td>
+                    <span class="text-mono score-value {% if c.progreso.score_global > 0.6 %}score-high{% elif c.progreso.score_global > 0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size: 13px;">
+                        {{ (c.progreso.score_global * 100)|int }}%
+                    </span>
+                </td>
+                <td>
+                    {% set cj = client_journeys.get(c.id) or {} %}
+                    {% if cj and cj.get('journey') %}
+                    <span class="badge badge-teal" style="font-size: 10px;">{{ cj.journey.name[:20] }}</span>
+                    {% else %}
+                    <span class="text-sm" style="color: var(--text-muted);">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if cj %}
+                    <div class="progress-mini" style="width: 60px;">
+                        <div class="progress-mini-fill high" style="width: {{ cj.progress_pct }}%"></div>
+                    </div>
+                    <span class="text-sm" style="font-size: 10px;">{{ cj.progress_pct }}%</span>
+                    {% else %}
+                    <span class="text-sm" style="color: var(--text-muted);">—</span>
+                    {% endif %}
+                </td>
+                <td><span class="text-sm">{{ c.historial.get('sesiones', 0) }}</span></td>
+                <td>
+                    {% if c.metadata.get('access_token') %}
+                    <span class="text-mono text-sm" style="cursor: pointer;" onclick="navigator.clipboard.writeText('{{ c.metadata.access_token }}'); this.textContent='✓'; setTimeout(()=>this.textContent='{{ c.metadata.access_token }}', 1500)" title="Copiar token">🔑 {{ c.metadata.access_token[:8] }}</span>
+                    {% else %}<span class="text-muted">—</span>{% endif %}
+                </td>
+                <td>
+                    <div class="flex gap-1" style="position: relative;">
+                        <select onchange="assignJourney('{{ c.id }}', this.value)" class="input input-sm" style="width: 90px; font-size: 11px; padding: 2px 4px;">
+                            <option value="">🧭</option>
+                            {% for j in journeys %}
+                            <option value="{{ j.id }}" {% if cj and cj.journey_id == j.id %}selected{% endif %}>{{ j.name[:15] }}</option>
+                            {% endfor %}
+                        </select>
+                        <a href="/coach/client/{{ c.id }}" class="btn btn-ghost btn-sm" title="Editar" style="padding: 0 4px;">✎</a>
+                        <button onclick="deleteClient('{{ c.id }}', '{{ c.nombre }}')" class="btn btn-ghost btn-sm text-danger" title="Eliminar" style="padding: 0 4px;">✕</button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if not clients %}
+<div class="empty-state">
+    <div class="empty-state-icon">○</div>
+    <h2 style="margin-bottom: var(--space-2);">Sin clientes</h2>
+    <p class="empty-state-text">Crea tu primer cliente para empezar.</p>
+    <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary">+ Crear primer cliente</button>
+</div>
+{% endif %}
+
+<!-- Create Modal -->
+<div id="client-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header"><h2>Nuevo cliente</h2><button onclick="document.getElementById('client-modal').classList.add('hidden')" class="modal-close">&times;</button></div>
+        <form id="client-form">
+            <div class="form-group"><label class="label">Nombre</label><input type="text" name="nombre" class="input" required></div>
+            <div class="form-group"><label class="label">Contexto</label><textarea name="contexto" class="input" rows="2"></textarea></div>
+            <div class="flex gap-3">
+                <div class="form-group flex-1"><label class="label">Edad</label><input type="number" name="edad" class="input"></div>
+                <div class="form-group flex-1"><label class="label">Perfil</label><select name="profile_id" class="input"><option value="coaching">Coaching</option><option value="comercial">Comercial</option><option value="financiero">Financiero</option></select></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Crear</button><button type="button" onclick="document.getElementById('client-modal').classList.add('hidden')" class="btn btn-secondary">Cancelar</button></div>
+        </form>
+    </div>
+</div>
+
+<script>
+function filterTable() {
+    const name = (document.getElementById('search-input').value || '').toLowerCase();
+    const coach = document.getElementById('filter-coach')?.value || '';
+    const journey = document.getElementById('filter-journey')?.value || '';
+    let count = 0;
+    document.querySelectorAll('#client-table tbody tr').forEach(tr => {
+        const n = tr.dataset.name || '';
+        const c = tr.dataset.coach || '';
+        const j = tr.dataset.journey || '';
+        const match = (!name || n.includes(name)) && (!coach || c === coach) && (!journey || j === journey);
+        tr.style.display = match ? '' : 'none';
+        if (match) count++;
+    });
+    document.getElementById('result-count').textContent = count + ' clientes';
+}
+
+function assignJourney(clientId, journeyId) {
+    if (!journeyId) return;
+    fetch('/api/v1/clients/' + clientId + '/journey', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({journey_id:journeyId})})
+    .then(() => location.reload());
+}
+
+function deleteClient(id, name) {
+    if (!confirm('¿Eliminar a ' + name + ' permanentemente?')) return;
+    fetch('/coach/client/' + id + '/delete', {method:'POST'}).then(() => location.reload());
+}
+
+document.getElementById('client-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = Object.fromEntries(new FormData(form));
+    const res = await fetch('/coach/client/create', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:data.nombre,contexto:data.contexto||'',edad:data.edad?parseInt(data.edad):null})});
+    if (res.ok) {
+        const client = await res.json();
+        const token = client.metadata?.access_token || '';
+        document.getElementById('client-modal').classList.add('hidden');
+        if (token) alert('✅ Cliente creado!\n\n🔑 Token: ' + token + '\n🌐 ether.care');
+        location.reload();
+    }
+});
+</script>
+{% endblock %}

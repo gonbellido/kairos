@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb"><a href="/coach">← Dashboard</a></div>
+        <h1>{{ client.nombre }}</h1>
+        <div class="flex items-center gap-2 mt-1">
+            {% if client_journey and client_journey.get('journey') %}
+            <span class="badge badge-teal">🧭 {{ client_journey.journey.name[:30] }}</span>
+            <span class="badge badge-indigo">{{ client_journey.get('current_phase', {}).get('name', 'Fase ?') }}</span>
+            <span class="text-sm" style="color: var(--text-muted);">{{ client_journey.get('progress_pct', 0) }}%</span>
+            {% else %}<span class="badge badge-neutral">Sin journey</span>{% endif %}
+            <select onchange="assignJourney('{{ client.id }}', this.value)" class="input input-sm" style="width: auto; font-size: 11px; padding: 2px 6px;">
+                <option value="">Cambiar journey</option>
+                {% for j in journeys %}<option value="{{ j.id }}" {% if client_journey and client_journey.journey_id == j.id %}selected{% endif %}>{{ j.name[:30] }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="page-header-right">
+        {% if client.metadata.get('access_token') %}
+        <span class="text-mono text-sm" style="background: var(--bg-tertiary); padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;" onclick="navigator.clipboard.writeText('{{ client.metadata.access_token }}');this.textContent='✓ Copiado!';setTimeout(()=>this.textContent='{{ client.metadata.access_token }}',1500)">🔑 {{ client.metadata.access_token }}</span>
+        {% endif %}
+        <a href="/coach/chat/{{ client.id }}" class="btn btn-primary btn-sm">💬 Chatear</a>
+    </div>
+</div>
+
+<div class="tabs mb-4"><button class="tab active" onclick="showTab('profile',this)">👤 Perfil</button><button class="tab" onclick="showTab('progress',this)">📊 Progreso</button><button class="tab" onclick="showTab('sessions',this)">📋 Sesiones</button><button class="tab" onclick="showTab('docs',this)">📎 Docs</button></div>
+
+<div id="tab-profile" class="tab-content">
+{% set pdata = client.metadata.get('profile_data', {}) or {} %}
+<div class="card mb-4"><h3 class="mb-3">👤 Perfil del cliente <button onclick="saveClientProfile('{{ client.id }}')" class="btn btn-primary btn-sm" style="float:right">💾 Guardar</button><span id="profile-save-status" class="text-sm" style="float:right;margin-right:8px"></span></h3>
+{% if vital_fields %}
+<div class="card mb-4" style="border-color: var(--accent-teal); background: var(--bg-tertiary);">
+    <h3 class="mb-3" style="display:flex;justify-content:space-between;align-items:center;">
+        🪪 Datos Vitales
+        <span class="badge badge-teal" style="font-size:10px;">Recolectados por IA</span>
+    </h3>
+    {% set vital_labels = {
+        'nombre': 'Nombre', 'apellido': 'Apellidos', 'fecha_nacimiento': 'Fecha de nac.',
+        'sexo': 'Sexo', 'lateralidad': 'Lateralidad', 'nacionalidad': 'Nacionalidad',
+        'provincia': 'Provincia / Estado', 'email': 'Email', 'telefono': 'Teléfono',
+        'profesion': 'Profesión', 'empresa': 'Empresa',
+        'objetivo_principal': 'Objetivo principal', 'contexto': 'Contexto',
+        'motivo_consulta': 'Motivo de consulta', 'bloqueo_principal': 'Bloqueo principal'
+    } %}
+    <div class="grid grid-2 gap-3">
+        {% for key, val in vital_fields.items() %}
+        {% if val %}
+        <div class="form-group">
+            <label class="label">{{ vital_labels.get(key, key.replace('_',' ')|title) }}</label>
+            <div class="input" style="background:var(--bg-secondary);cursor:default;color:var(--text-primary);min-height:36px;height:auto;white-space:pre-wrap;">{{ val }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% set jdata = client.metadata.get('journey_data', {}) %}
+{% if jdata %}
+<div class="card mb-4" style="border-color: var(--border-subtle); background: var(--bg-tertiary);">
+    <h3 class="mb-3" style="display:flex;justify-content:space-between;align-items:center;">
+        🧭 Datos del Journey
+        <span class="badge badge-indigo" style="font-size:10px;">Actualizado por IA</span>
+    </h3>
+    <div class="grid grid-2 gap-3">
+        {% for key, val in jdata.items() %}
+        {% if val and not key.startswith('_') %}
+        <div class="form-group">
+            <label class="label" style="text-transform:capitalize;">{{ key.replace('_',' ') }}</label>
+            <div class="input" style="background:var(--bg-secondary);cursor:default;color:var(--text-muted);font-size:12px;height:auto;white-space:pre-wrap;">{{ val }}</div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+<div class="grid grid-2 gap-3">
+<div class="form-group"><label class="label">Nombre</label><input id="cp-nombre" class="input" value="{{ client.nombre }}"></div>
+<div class="form-group"><label class="label">Apellidos</label><input id="cp-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
+<div class="form-group"><label class="label">Email</label><input id="cp-email" class="input" value="{{ pdata.get('email','') }}"></div>
+<div class="form-group"><label class="label">Teléfono</label><input id="cp-phone" class="input" value="{{ pdata.get('phone','') }}"></div>
+<div class="form-group"><label class="label">Profesión</label><input id="cp-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
+<div class="form-group"><label class="label">Empresa</label><input id="cp-company" class="input" value="{{ pdata.get('company','') }}"></div>
+<div class="form-group"><label class="label">Sector</label><select id="cp-industry" class="input">{% for i in ['Tecnología','Finanzas','Salud','Educación','Coaching','Consultoría','Otro'] %}<option value="{{ i }}" {% if pdata.get('industry','')==i %}selected{% endif %}>{{ i }}</option>{% endfor %}</select></div>
+<div class="form-group"><label class="label">Ubicación</label><input id="cp-location" class="input" value="{{ pdata.get('location','') }}"></div></div>
+<div class="form-group mt-3"><label class="label">Bio</label><textarea id="cp-bio" class="input" rows="3" maxlength="200">{{ pdata.get('bio','') }}</textarea></div>
+<div class="grid grid-2 gap-3 mt-3"><div class="form-group"><label class="label">LinkedIn</label><input id="cp-linkedin" class="input" value="{{ pdata.get('linkedin','') }}"></div><div class="form-group"><label class="label">Instagram</label><input id="cp-instagram" class="input" value="{{ pdata.get('instagram','') }}"></div></div>
+</div></div>
+
+<div id="tab-progress" class="tab-content hidden">
+<div class="grid grid-2 gap-4">
+<div class="card"><h3 class="mb-3">Estado actual</h3>{% set s = client.estado_actual %}
+<div class="flex justify-between text-sm mb-3"><span class="text-secondary">Emocional</span><span style="color:var(--text-primary);font-weight:500">{{ s.emocional }}</span></div>
+{% for label, key in [('Claridad','claridad'),('Energía','energia'),('Resistencia','resistencia')] %}
+<div class="mb-3"><div class="flex justify-between text-sm"><span class="text-secondary">{{ label }}</span><span class="text-mono">{{ (s[key]*100)|int }}%</span></div>
+<div class="progress-mini mt-1"><div class="progress-mini-fill {% if s[key]>0.6 %}high{% elif s[key]>0.3 %}mid{% else %}low{% endif %}" style="width:{{ s[key]*100 }}%"></div></div></div>{% endfor %}</div>
+<div class="card"><h3 class="mb-3">Señales</h3><div class="grid grid-2 gap-3 text-center">
+{% for label, val in [('Claridad',client.progreso.senales.claridad),('Acción',client.progreso.senales.accion),('Apertura',client.progreso.senales.apertura),('Consistencia',client.progreso.senales.consistencia)] %}
+<div><div class="score-value {% if val>0.6 %}score-high{% elif val>0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size:18px">{{ (val*100)|int }}%</div><div class="text-sm">{{ label }}</div></div>{% endfor %}</div>
+<div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:12px;text-align:center"><div class="text-sm">Score Global</div><div class="score-value {% if client.progreso.score_global>0.6 %}score-high{% elif client.progreso.score_global>0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size:32px;font-weight:600">{{ (client.progreso.score_global*100)|int }}%</div></div></div>
+{% if client.objetivos %}<div class="card"><h3 class="mb-3">Objetivos</h3><ul style="list-style:none;display:flex;flex-direction:column;gap:8px">{% for obj in client.objetivos %}<li class="flex items-center gap-2 text-sm"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-teal);flex-shrink:0"></span>{{ obj.titulo }}</li>{% endfor %}</ul></div>{% endif %}
+{% if client.patrones_detectados %}<div class="card"><h3 class="mb-3">Patrones</h3><div class="flex flex-wrap gap-2">{% for pat in client.patrones_detectados %}<span class="badge badge-indigo">{{ pat.patron }} <span style="opacity:0.6">×{{ pat.frecuencia }}</span></span>{% endfor %}</div></div>{% endif %}
+{% if client.insights %}<div class="card"><h3 class="mb-3">Insights</h3><div class="flex flex-col gap-2">{% for ins in client.insights[-5:]|reverse %}<div class="alert alert-info" style="font-size:13px"><div>{{ ins.contenido }}</div><div class="text-sm mt-1">{{ ins.timestamp.strftime('%d/%m/%y') if ins.timestamp else '' }}</div></div>{% endfor %}</div></div>{% endif %}
+</div></div>
+
+<div id="tab-sessions" class="tab-content hidden">
+{% if sessions %}<div class="flex flex-col gap-2">{% for s in sessions[-20:]|reverse %}<div class="flex items-start gap-3 p-3" style="background:var(--bg-tertiary);border-radius:var(--radius-md)">
+<div class="avatar avatar-md" style="background:var(--accent-teal-muted);color:var(--accent-teal);font-size:11px">{{ s.message_count or '?' }}</div>
+<div class="flex-1 min-w-0"><div class="font-medium" style="font-size:13px">Sesión {{ s.id[:8] }}</div><div class="text-sm">{{ s.created_at.strftime('%d/%m/%y %H:%M') if s.created_at else '—' }} · {{ s.message_count }} mensajes</div>{% if s.summary %}<div class="text-sm mt-1">{{ s.summary[:200] }}</div>{% endif %}</div></div>{% endfor %}</div>
+{% else %}<div class="card"><p class="text-sm" style="text-align:center;padding:30px">Sin sesiones. El cliente debe registrarse vía Telegram o web.</p></div>{% endif %}
+</div>
+
+<div id="tab-docs" class="tab-content hidden">
+<div class="card"><h3 class="mb-3">Subir material del cliente</h3><div class="drop-area" id="drop-area"><div style="font-size:32px;margin-bottom:8px;opacity:0.4">▣</div><p class="text-sm">Arrastra PDF, audio o documento aquí</p><p class="text-sm" style="opacity:0.6;margin-top:4px">o haz clic para seleccionar</p><input type="file" id="file-input" class="hidden" accept="audio/*,.txt,.pdf,.md,.csv,.json"></div><div id="upload-status" class="hidden text-sm mt-2" style="text-align:center"></div></div>
+</div>
+
+<script>
+function showTab(name, btn){document.querySelectorAll('.tab-content').forEach(t=>t.classList.add('hidden'));document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.getElementById('tab-'+name).classList.remove('hidden');btn.classList.add('active')}
+async function saveClientProfile(id){const p={};['surname','email','phone','job','company','location','bio','linkedin','instagram'].forEach(k=>{const v=document.getElementById('cp-'+k);if(v)p[k==='job'?'job_title':k]=v.value});p.industry=document.getElementById('cp-industry').value;const s=document.getElementById('profile-save-status');s.textContent='Guardando...';const r=await fetch('/coach/client/'+id+'/profile',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:p})});s.textContent=r.ok?'✅':'Error';s.style.color=r.ok?'var(--success)':'var(--danger)'}
+function assignJourney(cid,jid){if(!jid)return;fetch('/api/v1/clients/'+cid+'/journey',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({journey_id:jid})}).then(()=>location.reload())}
+document.getElementById('drop-area')?.addEventListener('click',()=>document.getElementById('file-input').click());
+document.getElementById('file-input')?.addEventListener('change',async(e)=>{const f=e.target.files[0];if(!f)return;const st=document.getElementById('upload-status');st.classList.remove('hidden');st.textContent='Subiendo...';const fd=new FormData();fd.append('file',f);fd.append('client_id','{{ client.id }}');const r=await fetch('/api/v1/upload/document',{method:'POST',body:fd});st.textContent=r.ok?'✅ Subido':'Error'});
+</script>
+{% endblock %}

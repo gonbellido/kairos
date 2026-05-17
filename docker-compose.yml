@@ -1,0 +1,94 @@
+services:
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-kairos_admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-kairos_secure_dev_key_32chars}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    networks: [kairos_net]
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      QDRANT__LOG_LEVEL: ${QDRANT_LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6333/healthz"]
+      interval: 10s
+      retries: 10
+      start_period: 20s
+    networks: [kairos_net]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kairos
+      POSTGRES_USER: kairos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kairos_dev}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kairos"]
+      interval: 5s
+      retries: 10
+      start_period: 10s
+    networks: [kairos_net]
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      DATABASE_URL: postgresql+asyncpg://kairos:${POSTGRES_PASSWORD:-kairos_dev}@postgres:5432/kairos
+      MINIO_HOST: minio
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./kairos:/app/kairos
+      - ./profiles:/app/profiles
+      - ./obsidian_templates:/app/obsidian_templates
+      - ${OBSIDIAN_VAULT_PATH:-./obsidian_vault}:/app/obsidian_vault
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 15s
+      retries: 5
+      start_period: 30s
+    networks: [kairos_net]
+
+networks:
+  kairos_net:
+    driver: bridge
+
+volumes:
+  minio_data:
+  qdrant_data:
+  postgres_data:

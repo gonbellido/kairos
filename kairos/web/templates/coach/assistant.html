@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Asistente IA</h1>
+        <p class="body" style="margin-top: var(--space-1);">Pregunta sobre tus clientes, su progreso, patrones o alertas</p>
+    </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
+    <!-- Messages -->
+    <div id="chat-msgs" style="height: 55vh; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
+        <div id="welcome" style="text-align: center; color: var(--text-muted); padding: var(--space-10);">
+            <p class="text-sm">Puedes preguntar cosas como:</p>
+            <p class="text-sm" style="color: var(--accent-teal); margin-top: var(--space-2);">"¿Cómo va el progreso de mis clientes?"</p>
+            <p class="text-sm" style="color: var(--accent-teal);">"¿Quién necesita atención urgente?"</p>
+            <p class="text-sm" style="color: var(--accent-teal);">"¿Qué patrones has detectado en Ana?"</p>
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div style="padding: var(--space-4); border-top: 1px solid var(--border-subtle);">
+        <form id="ask-form" class="flex gap-2">
+            <input id="question-input" type="text" class="input flex-1"
+                   placeholder="Ej: ¿Cómo va el progreso de mis clientes?" autofocus>
+            <button type="submit" class="btn btn-primary">Preguntar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const msgs = document.getElementById('chat-msgs');
+const input = document.getElementById('question-input');
+const form = document.getElementById('ask-form');
+const welcome = document.getElementById('welcome');
+
+function addMsg(text, role) {
+    welcome?.remove();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex ' + (role === 'coach' ? 'justify-end' : 'justify-start');
+    const bubbleClass = role === 'coach' ? 'chat-bubble-coach' : 'chat-bubble-client';
+    wrapper.innerHTML = '<div class="chat-bubble ' + bubbleClass + '">' + text.replace(/\n/g, '<br>') + '</div>';
+    msgs.appendChild(wrapper);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addTyping() {
+    welcome?.remove();
+    const wrapper = document.createElement('div');
+    wrapper.className = 'flex justify-start';
+    wrapper.id = 'typing';
+    wrapper.innerHTML = '<div class="chat-bubble chat-bubble-client"><div class="typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>';
+    msgs.appendChild(wrapper);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() { document.getElementById('typing')?.remove(); }
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const q = input.value.trim();
+    if (!q) return;
+    input.value = '';
+    addMsg(q, 'coach');
+    addTyping();
+
+    try {
+        const res = await fetch('/api/v1/coach/ask', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q})
+        });
+        const data = await res.json();
+        removeTyping();
+        addMsg(data.answer || 'Error al procesar', 'client');
+    } catch(e) {
+        removeTyping();
+        addMsg('Error de conexión', 'client');
+    }
+});
+</script>
+{% endblock %}

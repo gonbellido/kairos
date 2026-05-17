@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb"><a href="/admin">← Admin</a></div>
+        <h1>Journeys</h1>
+        <p class="body" style="margin-top: var(--space-1);">Cada journey es un proceso completo. Las fases son etapas. Los agentes ejecutan cada fase con su prompt.</p>
+    </div>
+    <div class="page-header-right">
+        <button onclick="openJourneyModal()" class="btn btn-primary btn-sm">+ Nuevo journey</button>
+    </div>
+</div>
+
+<!-- Type filter -->
+{% set types = journeys|map(attribute='profile_type')|unique|list %}
+<div class="flex items-center gap-2 mb-4 flex-wrap">
+    <span class="text-sm" style="color: var(--text-muted);">Tipo:</span>
+    <a href="?type=" class="badge {% if not request.query_params.get('type') %}badge-teal{% else %}badge-neutral{% endif %}" style="text-decoration: none;">Todos ({{ journeys|length }})</a>
+    {% for t in types %}
+    <a href="?type={{ t }}" class="badge {% if request.query_params.get('type') == t %}badge-teal{% else %}badge-indigo{% endif %}" style="text-decoration: none;">{{ t }} ({{ journeys|selectattr('profile_type', 'equalto', t)|list|length }})</a>
+    {% endfor %}
+</div>
+
+{% set filter_type = request.query_params.get('type', '') %}
+{% for j in journeys %}
+{% if not filter_type or j.profile_type == filter_type %}
+<div class="card mb-4" style="padding: 0; overflow: hidden; border-left: 3px solid {% if j.status == 'active' %}var(--accent-teal){% else %}var(--border-default){% endif %};">
+    <!-- Journey Header -->
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <div class="flex items-center justify-between mb-2">
+            <div>
+                <span class="badge {% if j.status == 'active' %}badge-teal{% else %}badge-neutral{% endif %}" style="margin-right: 6px;">{{ j.status }}</span>
+                <span class="badge badge-indigo" style="margin-right: 6px;">{{ j.profile_type }}</span>
+                <span style="font-weight: 600; font-size: 15px;">{{ j.name }}</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-sm" style="color: var(--text-muted);">{{ (j.phases or [])|length }} fases · {{ (j.agents or [])|length }} agentes</span>
+                <button onclick="editJourney('{{ j.id }}','{{ j.name }}','{{ j.description|replace('\n','\\n') }}','{{ j.objective|replace('\n','\\n') }}','{{ j.status }}')" class="btn btn-ghost btn-sm">Editar</button>
+                <button onclick="deleteJourney('{{ j.id }}','{{ j.name }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
+                <button onclick="openPhaseModal('{{ j.id }}')" class="btn btn-primary btn-sm">+ Fase</button>
+            </div>
+        </div>
+        <div class="text-sm" style="color: var(--text-secondary);">{{ j.objective[:200] }}</div>
+    </div>
+
+    <!-- Phases -->
+    {% for p in (j.phases or [])|sort(attribute='order_index') %}
+    <div style="border-bottom: 1px solid var(--border-subtle);">
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); background: var(--bg-tertiary);">
+            <div class="flex items-center gap-2">
+                <span class="badge badge-neutral">F{{ p.order_index + 1 }}</span>
+                <span style="font-weight: 500; font-size: 13px;">{{ p.name }}</span>
+                <span class="text-sm" style="color: var(--text-muted); margin-left: 8px;">{{ p.objective[:60] }}</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="reorderPhase('{{ p.id }}','up')" class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:14px">↑</button>
+                <button onclick="reorderPhase('{{ p.id }}','down')" class="btn btn-ghost btn-sm" style="padding:0 4px;font-size:14px">↓</button>
+                <button onclick="editPhase('{{ p.id }}','{{ p.name }}','{{ p.objective }}','{{ p.order_index }}')" class="btn btn-ghost btn-sm">Editar</button>
+                <button onclick="openAgentModal('{{ j.id }}', '{{ p.id }}')" class="btn btn-ghost btn-sm" style="color: var(--accent-teal);">+ Agente</button>
+            </div>
+        </div>
+        {% set phase_agents = (j.agents or [])|selectattr('phase_id', 'equalto', p.id)|list %}
+        {% if phase_agents %}
+        {% for a in phase_agents|sort(attribute='order_index') %}
+        <div class="flex items-center gap-2" style="padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <span class="badge {% if a.is_active %}badge-teal{% else %}badge-neutral{% endif %}" style="font-size: 10px; flex-shrink: 0;">{{ 'on' if a.is_active else 'off' }}</span>
+            <span style="font-size: 13px; flex: 1; min-width: 0;" class="truncate">
+                {{ a.name }}
+                <span style="color: var(--text-muted); font-size: 11px; margin-left: 4px;">{{ a.role[:40] }}</span>
+            </span>
+            <button onclick="openEditAgent('{{ a.id }}')" class="btn btn-ghost btn-sm" style="flex-shrink: 0;">Prompt</button>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="padding: var(--space-2) var(--space-4);" class="text-sm">Sin agentes — añade uno para esta fase</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+
+{% if not journeys %}
+<div class="empty-state"><div class="empty-state-icon">◈</div><p class="empty-state-text">No hay journeys. Crea el primero.</p><button onclick="openJourneyModal()" class="btn btn-primary">+ Crear primer journey</button></div>
+{% endif %}
+
+<!-- ── MODALS ── -->
+
+<!-- Journey Edit/Create -->
+<div id="journey-modal" class="modal-overlay hidden"><div class="modal">
+    <div class="modal-header"><h2 id="j-modal-title">Nuevo Journey</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
+    <form id="journey-form"><input type="hidden" id="j-id">
+        <div class="form-group"><label class="label">Nombre</label><input type="text" id="j-name" class="input" required></div>
+        <div class="form-group"><label class="label">Descripción</label><textarea id="j-desc" class="input" rows="2"></textarea></div>
+        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="j-obj" class="input"></div>
+        <div class="flex gap-3">
+            <div class="form-group flex-1"><label class="label">Tipo</label><select id="j-type" class="input"><option value="coaching">Coaching</option><option value="comercial">Comercial</option><option value="financiero">Financiero</option><option value="bioneuro">Bioneuromoción</option><option value="custom">Custom</option></select></div>
+            <div class="form-group flex-1"><label class="label">Status</label><select id="j-status" class="input"><option value="draft">Draft</option><option value="active">Active</option><option value="archived">Archived</option></select></div>
+        </div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="j-submit">Crear</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+    </form>
+</div></div>
+
+<!-- Phase Modal -->
+<div id="phase-modal" class="modal-overlay hidden"><div class="modal">
+    <div class="modal-header"><h2 id="p-modal-title">Añadir Fase</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
+    <form id="phase-form"><input type="hidden" id="p-id"><input type="hidden" id="p-jid">
+        <div class="form-group"><label class="label">Nombre</label><input type="text" id="p-name" class="input" required></div>
+        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="p-obj" class="input"></div>
+        <div class="form-group"><label class="label">Orden</label><input type="number" id="p-order" class="input" value="0"></div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="p-submit">Añadir</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+    </form>
+</div></div>
+
+<!-- Agent Modal (create + edit same modal) -->
+<div id="agent-modal" class="modal-overlay hidden"><div class="modal">
+    <div class="modal-header"><h2 id="a-modal-title">Agente</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
+    <form id="agent-form"><input type="hidden" id="a-id"><input type="hidden" id="a-jid"><input type="hidden" id="a-pid">
+        <div class="form-group"><label class="label">Nombre</label><input type="text" id="a-name" class="input" required></div>
+        <div class="form-group"><label class="label">Rol</label><input type="text" id="a-role" class="input"></div>
+        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="a-goal" class="input"></div>
+        <div class="form-group"><label class="label">System Prompt (instrucciones principales)</label><textarea id="a-prompt" class="input" rows="8" style="font-family: var(--font-mono); font-size: 12px;"></textarea></div>
+        <div class="form-group"><label class="label">Instrucciones adicionales</label><textarea id="a-instr" class="input" rows="3"></textarea></div>
+        <div class="form-group"><label class="label">Allowed Tags (JSON array, ej: ["urgent","skip"])</label><input id="a-tags" class="input" placeholder='["urgent_followup","jump:step=5"]'></div>
+        <div class="form-group"><label class="label">Output Schema (JSON, campos requeridos)</label><input id="a-schema" class="input" placeholder='{"required_fields":["message","structured"]}'></div>
+        <div id="a-status" class="hidden text-sm mb-3"></div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="a-submit">Guardar</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+    </form>
+</div></div>
+
+<script>
+function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.add('hidden'))}
+const _data={};
+{% for j in journeys %}{% for a in (j.agents or []) %}
+_data['{{ a.id }}']={name:'{{ a.name|replace("'","\\'") }}',role:'{{ a.role|replace("'","\\'") }}',goal:'{{ a.goal|replace("'","\\'") }}',system_prompt:'{{ a.system_prompt|replace("\\","\\\\")|replace("'","\\'")|replace("\n","\\n") }}',instructions:'{{ a.instructions|replace("\\","\\\\")|replace("'","\\'")|replace("\n","\\n") }}',allowed_tags:{{ a.allowed_tags|tojson if a.allowed_tags else '[]' }},output_schema:{{ a.output_schema|tojson if a.output_schema else '{}' }} };
+{% endfor %}{% endfor %}
+
+// ── Journey ──
+function deleteJourney(id,name){if(!confirm('¿Eliminar journey \"'+name+'\" y todas sus fases y agentes?'))return;fetch('/api/v1/journeys/'+id,{method:'DELETE'}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()})}
+function reorderPhase(pid,dir){fetch('/api/v1/journeys/phases/'+pid+'/reorder',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({direction:dir})}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()})}
+function openJourneyModal(){document.getElementById('j-id').value='';document.getElementById('j-modal-title').textContent='Nuevo Journey';document.getElementById('j-submit').textContent='Crear';document.getElementById('j-name').value='';document.getElementById('j-desc').value='';document.getElementById('j-obj').value='';document.getElementById('j-status').value='draft';document.getElementById('journey-modal').classList.remove('hidden')}
+function editJourney(id,name,desc,obj,status){document.getElementById('j-id').value=id;document.getElementById('j-modal-title').textContent='Editar Journey';document.getElementById('j-submit').textContent='Guardar';document.getElementById('j-name').value=name;document.getElementById('j-desc').value=desc.replace(/\\n/g,'\n');document.getElementById('j-obj').value=obj.replace(/\\n/g,'\n');document.getElementById('j-status').value=status;document.getElementById('journey-modal').classList.remove('hidden')}
+document.getElementById('journey-form').addEventListener('submit',async e=>{e.preventDefault();const id=document.getElementById('j-id').value;const url=id?'/api/v1/journeys/'+id:'/api/v1/journeys';const m=id?'PUT':'POST';const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('j-name').value,description:document.getElementById('j-desc').value,objective:document.getElementById('j-obj').value,profile_type:document.getElementById('j-type').value,status:document.getElementById('j-status').value})});if(r.ok)location.reload()});
+
+// ── Phase ──
+function openPhaseModal(jid){document.getElementById('p-id').value='';document.getElementById('p-jid').value=jid;document.getElementById('p-modal-title').textContent='Añadir Fase';document.getElementById('p-submit').textContent='Añadir';document.getElementById('p-name').value='';document.getElementById('p-obj').value='';document.getElementById('p-order').value='0';document.getElementById('phase-modal').classList.remove('hidden')}
+function editPhase(id,name,obj,order){document.getElementById('p-id').value=id;document.getElementById('p-jid').value='';document.getElementById('p-modal-title').textContent='Editar Fase';document.getElementById('p-submit').textContent='Guardar';document.getElementById('p-name').value=name;document.getElementById('p-obj').value=obj;document.getElementById('p-order').value=order;document.getElementById('phase-modal').classList.remove('hidden')}
+document.getElementById('phase-form').addEventListener('submit',async e=>{e.preventDefault();const pid=document.getElementById('p-id').value;if(pid){const r=await fetch('/api/v1/journeys/'+pid+'/phases',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('p-name').value,objective:document.getElementById('p-obj').value,order_index:parseInt(document.getElementById('p-order').value)})});if(r.ok)location.reload()}else{const jid=document.getElementById('p-jid').value;const r=await fetch('/api/v1/journeys/'+jid+'/phases',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:document.getElementById('p-name').value,objective:document.getElementById('p-obj').value,order_index:parseInt(document.getElementById('p-order').value)})});if(r.ok)location.reload()}});
+
+// ── Agent ──
+function openAgentModal(jid,pid){document.getElementById('a-id').value='';document.getElementById('a-jid').value=jid;document.getElementById('a-pid').value=pid;document.getElementById('a-modal-title').textContent='Nuevo Agente';document.getElementById('a-submit').textContent='Crear';document.getElementById('a-name').value='';document.getElementById('a-role').value='';document.getElementById('a-goal').value='';document.getElementById('a-prompt').value='';document.getElementById('a-instr').value='';document.getElementById('a-tags').value='';document.getElementById('a-schema').value='';document.getElementById('agent-modal').classList.remove('hidden')}
+function openEditAgent(id){const d=_data[id]||{};document.getElementById('a-id').value=id;document.getElementById('a-jid').value='';document.getElementById('a-pid').value='';document.getElementById('a-modal-title').textContent='Editar Agente';document.getElementById('a-submit').textContent='Guardar';document.getElementById('a-name').value=d.name||'';document.getElementById('a-role').value=d.role||'';document.getElementById('a-goal').value=d.goal||'';document.getElementById('a-prompt').value=(d.system_prompt||'').replace(/\\n/g,'\n');document.getElementById('a-instr').value=(d.instructions||'').replace(/\\n/g,'\n');document.getElementById('a-tags').value=JSON.stringify(d.allowed_tags||[]);document.getElementById('a-schema').value=JSON.stringify(d.output_schema||{});document.getElementById('agent-modal').classList.remove('hidden')}
+document.getElementById('agent-form').addEventListener('submit',async e=>{e.preventDefault();const aid=document.getElementById('a-id').value;const url=aid?'/api/v1/journeys/agents/'+aid:'/api/v1/journeys/'+document.getElementById('a-jid').value+'/agents';const m=aid?'PUT':'POST';let tags=[];let schema={};try{tags=JSON.parse(document.getElementById('a-tags').value)}catch(e){}try{schema=JSON.parse(document.getElementById('a-schema').value)}catch(e){}const body={name:document.getElementById('a-name').value,role:document.getElementById('a-role').value,goal:document.getElementById('a-goal').value,system_prompt:document.getElementById('a-prompt').value,instructions:document.getElementById('a-instr').value,allowed_tags:tags,output_schema:schema};if(!aid){body.phase_id=document.getElementById('a-pid').value;body.order_index=0}const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(r.ok)location.reload();else{const s=document.getElementById('a-status');s.classList.remove('hidden');s.textContent='Error';s.style.color='var(--danger)'}});
+</script>
+{% endblock %}

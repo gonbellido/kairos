@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Coaches</h1>
+    </div>
+    <div class="page-header-right">
+        <a href="/admin/channels" class="btn btn-ghost btn-sm">Canales</a>
+        <a href="/admin/prompts" class="btn btn-ghost btn-sm">Prompts</a>
+        <button onclick="openCreateModal()" class="btn btn-primary btn-sm">+ Nuevo coach</button>
+    </div>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Email</th>
+                <th>Plan</th>
+                <th>Idioma</th>
+                <th>Rol</th>
+                <th>Creado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in coaches %}
+            <tr>
+                <td style="color: var(--text-primary); font-weight: 500;">{{ c.name }}</td>
+                <td>{{ c.email }}</td>
+                <td><span class="badge {% if c.plan == 'pro' %}badge-teal{% elif c.plan == 'admin' %}badge-indigo{% else %}badge-neutral{% endif %}">{{ c.get('plan', 'free') }}</span></td>
+                <td><span class="badge badge-neutral">{{ {'es': '🇪🇸 ES', 'en': '🇬🇧 EN'}.get(c.get('language', 'es'), c.get('language', 'es')) }}</span></td>
+                <td><span class="badge badge-neutral">{{ c.role }}</span></td>
+                <td><span class="text-sm">{{ c.created_at[:10] if c.created_at else '' }}</span></td>
+                <td>
+                    <div class="flex gap-1">
+                        <button onclick="openEditModal('{{ c.id }}', '{{ c.name }}', '{{ c.email }}', '{{ c.role }}', '{{ c.get('plan', 'free') }}', '{{ c.get('language', 'es') }}')" class="btn btn-ghost btn-sm">Editar</button>
+                        {% if c.role != 'admin' %}
+                        <button onclick="deleteCoach('{{ c.id }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Edit/Create Coach Modal -->
+<div id="coach-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="modal-title">Nuevo coach</h2>
+            <button onclick="closeModal()" class="modal-close">&times;</button>
+        </div>
+        <form id="coach-form">
+            <input type="hidden" id="coach-id">
+            <div class="form-group">
+                <label class="label" for="coach-name">Nombre</label>
+                <input type="text" id="coach-name" class="input" required placeholder="Nombre completo">
+            </div>
+            <div class="form-group">
+                <label class="label" for="coach-email">Email</label>
+                <input type="email" id="coach-email" class="input" required placeholder="email@ejemplo.com">
+            </div>
+            <div class="flex gap-3">
+                <div class="form-group flex-1">
+                    <label class="label" for="coach-plan">Plan</label>
+                    <select id="coach-plan" class="input">
+                        <option value="free">Free</option>
+                        <option value="pro">Pro</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group flex-1">
+                    <label class="label" for="coach-language">Idioma</label>
+                    <select id="coach-language" class="input">
+                        <option value="es">Español</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="label" for="coach-password">Contraseña (dejar vacío para no cambiar)</label>
+                <input type="password" id="coach-password" class="input" placeholder="••••••••">
+            </div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" id="modal-submit">Guardar</button>
+                <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let editingId = null;
+
+function openCreateModal() {
+    editingId = null;
+    document.getElementById('modal-title').textContent = 'Nuevo coach';
+    document.getElementById('modal-submit').textContent = 'Crear';
+    document.getElementById('coach-id').value = '';
+    document.getElementById('coach-name').value = '';
+    document.getElementById('coach-email').value = '';
+    document.getElementById('coach-plan').value = 'free';
+    document.getElementById('coach-language').value = 'es';
+    document.getElementById('coach-password').value = '';
+    document.getElementById('coach-modal').classList.remove('hidden');
+}
+
+function openEditModal(id, name, email, role, plan, language) {
+    editingId = id;
+    document.getElementById('modal-title').textContent = 'Editar coach';
+    document.getElementById('modal-submit').textContent = 'Guardar';
+    document.getElementById('coach-id').value = id;
+    document.getElementById('coach-name').value = name;
+    document.getElementById('coach-email').value = email;
+    document.getElementById('coach-plan').value = plan || 'free';
+    document.getElementById('coach-language').value = language || 'es';
+    document.getElementById('coach-password').value = '';
+    document.getElementById('coach-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('coach-modal').classList.add('hidden');
+}
+
+document.getElementById('coach-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+        name: document.getElementById('coach-name').value,
+        email: document.getElementById('coach-email').value,
+        plan: document.getElementById('coach-plan').value,
+        language: document.getElementById('coach-language').value,
+    };
+    const pwd = document.getElementById('coach-password').value;
+    if (pwd) data.password = pwd;
+
+    if (editingId) {
+        const res = await fetch('/admin/coach/' + editingId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        if (res.ok) { closeModal(); location.reload(); }
+    } else {
+        const form = new FormData();
+        form.append('name', data.name);
+        form.append('email', data.email);
+        form.append('password', pwd || 'changeme123');
+        await fetch('/admin/coach/create', {method: 'POST', body: form});
+        closeModal(); location.reload();
+    }
+});
+
+async function deleteCoach(id) {
+    if (!confirm('¿Eliminar este coach permanentemente?')) return;
+    await fetch('/admin/coach/' + id + '/delete', {method: 'POST'});
+    location.reload();
+}
+</script>
+{% endblock %}

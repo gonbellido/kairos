@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb"><a href="/admin">← Admin</a></div>
+        <h1>Monitor de Actividad</h1>
+        <p class="body" style="margin-top: var(--space-1);">Supervisa journeys, mensajes, agentes y trazas en tiempo real</p>
+    </div>
+    <div class="page-header-right">
+        <button onclick="loadData()" class="btn btn-ghost btn-sm">🔄 Refrescar</button>
+        <span class="text-sm" id="last-refresh" style="color: var(--text-muted);"></span>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-4 mb-4" id="stats"></div>
+
+<!-- Tabs -->
+<div class="tabs mb-4">
+    <button class="tab active" onclick="showTab('activity', this)">📡 Actividad</button>
+    <button class="tab" onclick="showTab('journeys', this)">🧭 Journeys</button>
+    <button class="tab" onclick="showTab('traces', this)">🔍 Trazas</button>
+    <button class="tab" onclick="showTab('events', this)">📋 Eventos</button>
+</div>
+
+<div id="tab-activity"><div class="text-sm" style="text-align:center;padding:var(--space-10);">Cargando...</div></div>
+<div id="tab-journeys" class="hidden"><div class="text-sm" style="text-align:center;padding:var(--space-10);">Cargando...</div></div>
+<div id="tab-traces" class="hidden"><div class="text-sm" style="text-align:center;padding:var(--space-10);">Cargando...</div></div>
+<div id="tab-events" class="hidden"><div class="text-sm" style="text-align:center;padding:var(--space-10);">Cargando...</div></div>
+
+<script>
+function showTab(name, btn) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.remove('hidden');
+    btn.classList.add('active');
+}
+
+async function loadData() {
+    const res = await fetch('/admin/monitor/data');
+    const d = await res.json();
+    document.getElementById('last-refresh').textContent = new Date().toLocaleTimeString();
+
+    // Stats
+    document.getElementById('stats').innerHTML = [
+        ['📡 Actividad', d.activity.length, 'eventos'],
+        ['🧭 Journeys', d.journeys.active, 'activos'],
+        ['👤 Clientes', d.active_client_journeys.length, 'en journey'],
+        ['🤖 Bots', d.bots, 'Telegram'],
+    ].map(([l,v,s]) => '<div class="stat-card" style="text-align:center"><div class="stat-value">'+v+'</div><div class="stat-label">'+l+'</div></div>').join('');
+
+    // Activity feed — show prompt details
+    document.getElementById('tab-activity').innerHTML = d.activity.length ? '<div class="flex flex-col gap-1">' +
+        d.activity.map(a => {
+            let color = a.type==='chat_message'?'badge-indigo':a.type==='agent_response'?'badge-teal':a.type==='prompt_used'?'badge-success':a.type==='journey_prompt'?'badge-teal':a.type==='journey_assigned'?'badge-warning':'badge-neutral';
+            let detail = '';
+            if (a.preview) detail = '<div class="text-sm" style="color:var(--text-muted);font-family:var(--font-mono);font-size:11px;max-height:60px;overflow:hidden;margin-top:4px">'+a.preview+'</div>';
+            else if (a.prompt_len) detail = '<span class="text-sm" style="color:var(--text-muted)"> ('+a.prompt_len+' chars)</span>';
+            else if (a.message) detail = '<span class="text-sm">'+a.message+'</span>';
+            else if (a.journey) detail = '<span class="text-sm">journey: '+a.journey+'</span>';
+            return '<div class="p-2" style="border-bottom:1px solid var(--border-subtle)">' +
+                '<span class="badge '+color+'" style="font-size:10px">'+a.type+'</span> ' +
+                '<span class="text-sm" style="color:var(--text-muted)">'+a.ts.slice(11,19)+'</span> ' +
+                (a.channel?'<span class="text-sm">['+a.channel+']</span> ':'') +
+                detail +
+                '</div>';
+        }).join('') + '</div>' : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin actividad reciente</div>';
+
+    // Journeys
+    document.getElementById('tab-journeys').innerHTML = d.active_client_journeys.length ?
+        '<table class="table"><thead><tr><th>Cliente</th><th>Journey</th><th>Fase</th><th>Progreso</th><th>Estado</th><th>Última</th></tr></thead><tbody>' +
+        d.active_client_journeys.map(j => '<tr><td class="text-mono" style="font-size:12px">'+j.client_id.slice(0,12)+'</td><td>'+j.journey_id.slice(0,12)+'</td><td>'+j.current_phase_id.slice(0,8)+'</td><td><div class="progress-mini" style="width:60px"><div class="progress-mini-fill high" style="width:'+j.progress_pct+'%"></div></div> '+j.progress_pct+'%</td><td><span class="badge '+(j.status==="in_progress"?"badge-teal":"badge-neutral")+'">'+j.status+'</span></td><td class="text-sm">'+j.last_interaction.slice(11,19)+'</td></tr>').join('') + '</tbody></table>'
+        : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin journeys activos</div>';
+
+    // Traces
+    document.getElementById('tab-traces').innerHTML = d.traces.length ?
+        '<div class="flex flex-col gap-3">' + d.traces.map(t => '<div class="card" style="padding:var(--space-3)"><div class="text-sm" style="color:var(--text-muted)">'+t.ts.slice(11,19)+'</div><pre style="font-size:11px;max-height:200px;overflow:auto">'+JSON.stringify(t,null,2)+'</pre></div>').join('') + '</div>'
+        : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin trazas</div>';
+
+    // Events
+    document.getElementById('tab-events').innerHTML = d.events.length ?
+        '<table class="table"><thead><tr><th>Hora</th><th>Cliente</th><th>Evento</th><th>Detalle</th></tr></thead><tbody>' +
+        d.events.map(e => '<tr><td class="text-sm">'+e.ts.slice(11,19)+'</td><td class="text-mono" style="font-size:11px">'+e.client_id.slice(0,10)+'</td><td><span class="badge badge-neutral">'+e.event_type+'</span></td><td class="text-sm">'+JSON.stringify(e.payload).slice(0,80)+'</td></tr>').join('') + '</tbody></table>'
+        : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin eventos</div>';
+}
+
+loadData();
+setInterval(loadData, 15000);
+</script>
+{% endblock %}

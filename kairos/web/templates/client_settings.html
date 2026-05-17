@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAIROS — Configuración</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/theme.css"><link rel="stylesheet" href="/static/css/components.css"><link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body class="app">
+<header class="topbar" style="justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:12px"><a href="/client/dashboard" class="text-sm" style="color:var(--text-muted)">← Dashboard</a><span style="font-weight:600">{{ client.nombre }}</span></div>
+    <a href="/client/logout" class="btn btn-ghost btn-sm text-danger">Salir</a>
+</header>
+<main class="main"><div class="content" style="max-width:800px">
+
+<div class="page-header"><div class="page-header-left"><h1>⚙ Configuración</h1></div></div>
+
+<div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
+    <button class="tab-pill active" onclick="switchTab('profile',this)">👤 Perfil</button>
+    <button class="tab-pill" onclick="switchTab('privacy',this)">🔒 Privacidad</button>
+    <button class="tab-pill" onclick="switchTab('coach',this)">👥 Mi Coach</button>
+</div>
+<style>.tab-pill{padding:8px 18px;border-radius:999px;border:1px solid var(--border-default);background:transparent;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer}.tab-pill.active{background:var(--accent-teal-muted);color:var(--accent-teal);border-color:var(--accent-teal)}</style>
+
+{% set pdata = profile_data or {} %}
+
+<div id="tab-profile" class="tab-content">
+
+<!-- Datos personales -->
+<div class="card mb-4">
+    <h3 class="mb-3">Datos personales</h3>
+    <p class="body mb-4">Esta información la ve tu coach para personalizar tu acompañamiento.</p>
+    <div class="grid grid-2 gap-3">
+        <div class="form-group"><label class="label">Nombre</label><input id="f-name" class="input" value="{{ client.nombre }}" disabled></div>
+        <div class="form-group"><label class="label">Apellidos</label><input id="f-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
+        <div class="form-group"><label class="label">Email</label><input id="f-email" class="input" value="{{ pdata.get('email','') }}" placeholder="tu@email.com"></div>
+        <div class="form-group"><label class="label">Teléfono</label><input id="f-phone" class="input" value="{{ pdata.get('phone','') }}" placeholder="+34 600 000 000"></div>
+    </div>
+</div>
+
+<!-- Datos profesionales -->
+<div class="card mb-4">
+    <h3 class="mb-3">Información profesional</h3>
+    <div class="grid grid-2 gap-3">
+        <div class="form-group"><label class="label">Profesión / Cargo</label><input id="f-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
+        <div class="form-group"><label class="label">Empresa</label><input id="f-company" class="input" value="{{ pdata.get('company','') }}"></div>
+        <div class="form-group"><label class="label">Sector</label>
+            <select id="f-industry" class="input">{% for i in ['Tecnología','Finanzas','Salud','Educación','Coaching','Consultoría','Otro'] %}<option value="{{ i }}" {% if pdata.get('industry','')==i %}selected{% endif %}>{{ i }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label class="label">Ubicación</label><input id="f-location" class="input" value="{{ pdata.get('location','') }}"></div>
+    </div>
+</div>
+
+<!-- Sobre ti -->
+<div class="card mb-4">
+    <h3 class="mb-3">Sobre ti</h3>
+    <div style="position:relative">
+        <textarea id="f-bio" class="input" rows="4" maxlength="200" placeholder="Cuéntale a tu coach sobre ti, tus intereses y qué te gustaría trabajar...">{{ pdata.get('bio','') }}</textarea>
+        <span id="bio-count" class="text-sm" style="position:absolute;bottom:8px;right:12px">{{ (pdata.get('bio','')|length) }}/200</span>
+    </div>
+</div>
+
+<!-- Redes -->
+<div class="card mb-4">
+    <h3 class="mb-3">Redes sociales</h3>
+    <div class="grid grid-2 gap-3">
+        <div class="form-group"><label class="label">LinkedIn</label><input id="f-linkedin" class="input" value="{{ pdata.get('linkedin','') }}" placeholder="https://linkedin.com/in/..."></div>
+        <div class="form-group"><label class="label">Instagram</label><input id="f-instagram" class="input" value="{{ pdata.get('instagram','') }}"></div>
+    </div>
+</div>
+
+<button onclick="saveProfile()" class="btn btn-primary btn-lg" style="width:100%">💾 Guardar cambios</button>
+<span id="status" class="text-sm" style="margin-left:12px"></span>
+
+</div>
+
+<div id="tab-privacy" class="tab-content hidden">
+<!-- Privacidad -->
+<div class="card mb-4 mt-6">
+    <h3 class="mb-3">🔒 Privacidad y datos</h3>
+    <p class="body mb-3">Tú controlas qué información compartes con tu coach.</p>
+    {% for topic in ['Trabajo y carrera','Relaciones personales','Familia','Salud','Finanzas','Crecimiento personal'] %}
+    <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border-subtle)"><span>{{ topic }}</span><label class="toggle active" style="cursor:pointer"><input type="checkbox" checked style="display:none"></label></div>
+    {% endfor %}
+    <div class="flex items-center justify-between py-3 mt-2"><span>Notificarme cuando mi coach revise mi progreso</span><label class="toggle active"><input type="checkbox" checked style="display:none"></label></div>
+    <p class="text-sm mt-3">Para solicitar la eliminación de tus datos, contacta con tu coach o escribe a privacidad@ether.care</p>
+</div>
+</div>
+
+<div id="tab-coach" class="tab-content hidden">
+<div class="card mb-4"><h3 class="mb-3">👥 Mi Coach</h3>
+<p class="body">Tu coach es <strong>{{ coach_name or 'Luis Martin' }}</strong>. Él te acompaña en tu proceso y puede ver tu progreso, estado emocional y datos de perfil.</p>
+<p class="body mt-2">Si necesitas contactar directamente con tu coach, usa el buzón de consultas en tu dashboard.</p>
+</div>
+</div>
+
+<style>.tab-content{animation:fadeIn .2s ease}@keyframes fadeIn{from{opacity:0}to{opacity:1}}</style>
+
+</div></main>
+
+<script>
+function switchTab(n,b){document.querySelectorAll('.tab-content').forEach(t=>t.classList.add('hidden'));document.querySelectorAll('.tab-pill').forEach(p=>p.classList.remove('active'));document.getElementById('tab-'+n).classList.remove('hidden');b.classList.add('active')}
+async function saveProfile(){
+    const p = {surname:document.getElementById('f-surname').value,email:document.getElementById('f-email').value,phone:document.getElementById('f-phone').value,job_title:document.getElementById('f-job').value,company:document.getElementById('f-company').value,industry:document.getElementById('f-industry').value,location:document.getElementById('f-location').value,bio:document.getElementById('f-bio').value,linkedin:document.getElementById('f-linkedin').value,instagram:document.getElementById('f-instagram').value};
+    document.getElementById('bio-count').textContent=(p.bio||'').length+'/200';
+    const s=document.getElementById('status');s.textContent='Guardando...';
+    const r=await fetch('/api/v1/settings/profile',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:p})});
+    s.textContent=r.ok?'✅ Guardado':'Error';s.style.color=r.ok?'var(--success)':'var(--danger)';
+}
+</script>
+</body>
+</html>

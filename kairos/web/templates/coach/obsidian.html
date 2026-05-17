@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Bóveda Obsidian</h1>
+    </div>
+    <div class="page-header-right">
+        {% if configurado and obsidian_vault %}
+        <span class="text-sm" style="color: var(--text-muted); margin-right: 8px;">{{ vault_path }}</span>
+        <a href="{{ obsidian_vault }}" class="btn btn-ghost btn-sm">Abrir en Obsidian</a>
+        {% endif %}
+    </div>
+</div>
+
+{% if not configurado %}
+<div class="alert alert-warning mb-6">
+    <strong>Obsidian Vault no configurado.</strong>
+    Configura <code>OBSIDIAN_VAULT</code> en tu <code>.env</code> para activar la sincronización automática.
+</div>
+{% else %}
+<div class="alert alert-info mb-6">
+    <strong>Vault:</strong> <code>{{ vault_path }}</code>
+</div>
+{% endif %}
+
+<!-- Stats -->
+<div class="grid grid-4 mb-6">
+    <div class="stat-card" style="text-align: center;">
+        <div class="stat-value">{{ stats.clientes }}</div>
+        <div class="stat-label">Fichas Obsidian</div>
+    </div>
+    <div class="stat-card" style="text-align: center;">
+        <div class="stat-value">{{ stats.materiales }}</div>
+        <div class="stat-label">Materiales Coach</div>
+    </div>
+    <div class="stat-card" style="text-align: center;">
+        <div class="stat-value">{{ stats.docs_cliente }}</div>
+        <div class="stat-label">Docs de Clientes</div>
+    </div>
+    <div class="stat-card" style="text-align: center;">
+        <div class="stat-value">{{ stats.alertas }}</div>
+        <div class="stat-label">Alertas</div>
+    </div>
+</div>
+
+<!-- Coach Materials from Qdrant -->
+{% if coach_materials %}
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>📚 Materiales del Coach (Qdrant)</h3>
+    </div>
+    <div>
+        {% for m in coach_materials[:20] %}
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <div class="flex items-center gap-3">
+                <span style="font-size: 18px; opacity: 0.5;">▦</span>
+                <div>
+                    <div style="font-weight: 500; font-size: 14px;">{{ m.metadata.get('original_name', 'documento') }}</div>
+                    <div class="text-sm">{{ (m.content or '')[:100] }}{% if (m.content or '')|length > 100 %}...{% endif %}</div>
+                </div>
+            </div>
+            <span class="badge badge-teal">{{ m.metadata.get('chunk_total', 1) }} chunks</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Client Documents from Qdrant -->
+{% if client_docs %}
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>📎 Documentos de Clientes (Qdrant)</h3>
+    </div>
+    <div>
+        {% for d in client_docs[:30] %}
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <div class="flex items-center gap-3">
+                <span style="font-size: 18px; opacity: 0.5;">◎</span>
+                <div>
+                    <div style="font-weight: 500; font-size: 14px;">
+                        {{ d.metadata.get('original_name', 'documento') }}
+                        <span class="badge badge-indigo" style="margin-left: 4px; font-size: 10px;">{{ d._client_name or '' }}</span>
+                    </div>
+                    <div class="text-sm">{{ (d.content or '')[:100] }}{% if (d.content or '')|length > 100 %}...{% endif %}</div>
+                </div>
+            </div>
+            {% if d.metadata.get('minio_path') %}
+            <span class="badge badge-success" style="font-size: 10px;">MinIO</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Client notes -->
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>Fichas de clientes en Obsidian</h3>
+    </div>
+    {% if notas_clientes %}
+    <div>
+        {% for n in notas_clientes %}
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <div class="flex items-center gap-3">
+                <span style="font-size: 18px; opacity: 0.5;">◎</span>
+                <div>
+                    <a href="obsidian://open?vault={{ vault_name | urlencode }}&file=KAIROS/Clientes/{{ n.nombre | urlencode }}/{{ n.nombre | urlencode }}" target="_blank"
+                       style="font-weight: 500; font-size: 14px;">{{ n.nombre }}</a>
+                    <div class="text-sm">Score: {{ n.score }}% · {{ n.emocion }}</div>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <a href="obsidian://open?vault={{ vault_name | urlencode }}&file=KAIROS/Clientes/{{ n.nombre | urlencode }}" target="_blank"
+                   class="btn btn-ghost btn-sm">Abrir</a>
+                <a href="/coach/client/{{ n.id }}" class="btn btn-ghost btn-sm">Web</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="padding: var(--space-6); text-align: center;" class="text-sm">No hay fichas de cliente en la bóveda.</div>
+    {% endif %}
+</div>
+
+<!-- Alerts -->
+{% if notas_alertas %}
+<div class="card mb-6" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>Alertas en Obsidian</h3>
+    </div>
+    <div>
+        {% for a in notas_alertas %}
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <span class="text-sm">{{ a.titulo }}</span>
+            <a href="obsidian://open?vault={{ vault_name | urlencode }}&file=KAIROS/Alertas/{{ a.archivo | urlencode }}" target="_blank"
+               class="btn btn-ghost btn-sm">Abrir</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Patterns -->
+{% if notas_patrones %}
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>Patrones en Obsidian</h3>
+    </div>
+    <div>
+        {% for p in notas_patrones %}
+        <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+            <span class="text-sm">{{ p.titulo }}</span>
+            <a href="obsidian://open?vault={{ vault_name | urlencode }}&file=KAIROS/Patrones/{{ p.archivo | urlencode }}" target="_blank"
+               class="btn btn-ghost btn-sm">Abrir</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

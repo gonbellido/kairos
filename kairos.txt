@@ -1,0 +1,270 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2822
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Bold;\f1\froman\fcharset0 Times-Roman;\f2\froman\fcharset0 Times-Italic;
+\f3\fnil\fcharset0 STIXTwoMath-Regular;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red109\green109\blue109;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c50196\c50196\c50196;}
+{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid1\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid1}
+{\list\listtemplateid2\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid101\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid2}
+{\list\listtemplateid3\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid201\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid3}
+{\list\listtemplateid4\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid301\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid4}
+{\list\listtemplateid5\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid401\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid5}
+{\list\listtemplateid6\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid501\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid6}
+{\list\listtemplateid7\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid601\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid7}}
+{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}{\listoverride\listid3\listoverridecount0\ls3}{\listoverride\listid4\listoverridecount0\ls4}{\listoverride\listid5\listoverridecount0\ls5}{\listoverride\listid6\listoverridecount0\ls6}{\listoverride\listid7\listoverridecount0\ls7}}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\sa321\partightenfactor0
+
+\f0\b\fs48 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 System Logic & Architecture Manifesto\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\fs36 \cf0 1. Visi\'f3n y Prop\'f3sito\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\fs24 \cf0 PHRONOS
+\f1\b0  es un framework de inteligencia artificial multi-agente dise\'f1ado para capturar, replicar y potenciar el 
+\f0\b criterio humano
+\f1\b0  y la 
+\f0\b toma de decisiones
+\f1\b0 . A diferencia de los sistemas RAG convencionales, PHRONOS no solo busca informaci\'f3n, sino que utiliza una 
+\f0\b Memoria de Experiencia Ponderada
+\f1\b0  para decidir 
+\f2\i c\'f3mo
+\f1\i0  intervenir bas\'e1ndose en \'e9xitos y fracasos previos.\
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 2. Los 3 Pilares Fundamentales\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 El sistema se basa en la intersecci\'f3n de tres conceptos:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls1\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Perfil (El "Qui\'e9n"):
+\f1\b0  Identidad, rol y valores \'e9ticos/t\'e9cnicos.\
+\ls1\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Impronta (El "C\'f3mo"):
+\f1\b0  Variables conductuales cuantificables (Directividad, Emocionalidad, etc.).\
+\ls1\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Experiencia (El "Aprendido"):
+\f1\b0  Memoria estad\'edstica de casos previos y sus resultados.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 3. Arquitectura de Memoria (Los 4 Niveles)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Para que el sistema aprenda, la informaci\'f3n fluye y se destila a trav\'e9s de cuatro niveles:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls2\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Nivel 1: Memoria Cruda:
+\f1\b0  Transcripciones de audios, textos y logs sin procesar.\
+\ls2\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Nivel 2: Memoria Estructurada (Casos):
+\f1\b0  La s\'edntesis del Nivel 1. Cada caso incluye 
+\f2\i Contexto + Intervenci\'f3n + Impronta aplicada + Resultado
+\f1\i0 .\
+\ls2\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Nivel 3: Memoria de Patrones (Insights):
+\f1\b0  Algoritmos que detectan qu\'e9 intervenciones funcionan mejor en qu\'e9 contextos (Se\'f1al Estad\'edstica).\
+\ls2\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Nivel 4: Memoria de Ejecuci\'f3n:
+\f1\b0  El output final generado por el agente en tiempo real.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 4. El Modelo de Decisi\'f3n (F\'f3rmula Logic)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 La decisi\'f3n de un agente en PHRONOS no es estoc\'e1stica, es una funci\'f3n de:\
+\pard\pardeftab720\partightenfactor0
+
+\f3 \cf0 D\
+e\
+c\
+i\
+s\
+i\
+o\
+\uc0\u714 \
+n\
+=\
+f\
+(\
+P\
+e\
+r\
+f\
+i\
+l\
+,\
+E\
+s\
+t\
+a\
+d\
+o\
+,\
+E\
+x\
+p\
+e\
+r\
+i\
+e\
+n\
+c\
+i\
+a\
+,\
+C\
+o\
+n\
+o\
+c\
+i\
+m\
+i\
+e\
+n\
+t\
+o\
+)\
+\pard\pardeftab720\partightenfactor0
+
+\f1 \cf0 Decisi\'f3n = f(Perfil, Estado, Experiencia, Conocimiento)\
+\pard\pardeftab720\partightenfactor0
+\cf0 Decisio\uc0\u714 n=f(Perfil,Estado,Experiencia,Conocimiento)\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls3\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Perfil:
+\f1\b0  Heur\'edsticas y l\'edmites del humano.\
+\ls3\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Estado:
+\f1\b0  Clasificaci\'f3n algor\'edtmica del input actual (Riesgo, Emoci\'f3n, Urgencia).\
+\ls3\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Experiencia:
+\f1\b0  Casos similares recuperados de 
+\f0\b Qdrant
+\f1\b0  con score de \'e9xito.\
+\ls3\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Conocimiento:
+\f1\b0  Informaci\'f3n t\'e9cnica/documental recuperada v\'eda RAG tradicional.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 5. Variables de Impronta (Behavioral Map)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Cada perfil define su car\'e1cter mediante variables de 0 a 1, permitiendo cambiar el comportamiento sin cambiar el c\'f3digo:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls4\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Directividad:
+\f1\b0  (0: Pregunta/Escucha | 1: Da \'f3rdenes/instrucciones).\
+\ls4\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Emocionalidad:
+\f1\b0  (0: L\'f3gico/Fr\'edo | 1: Emp\'e1tico/Cercano).\
+\ls4\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Analiticidad:
+\f1\b0  (0: Intuitivo | 1: Basado en datos).\
+\ls4\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Riesgo:
+\f1\b0  (0: Conservador | 1: Agresivo).\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 6. Estructura Multi-Agente (Orquestaci\'f3n)\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Utilizamos 
+\f0\b LangGraph
+\f1\b0  para manejar un flujo de agentes colaborativos:\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls5\ilvl0
+\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Agente de Percepci\'f3n:
+\f1\b0  Clasifica el estado y la intenci\'f3n.\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Agente de Memoria:
+\f1\b0  Recupera y pondera experiencias en Qdrant.\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Agentes de Perfil (Workers):
+\f1\b0  Ejecutan la l\'f3gica seg\'fan el dominio (Comercial, Terapeuta, etc.).\
+\ls5\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Agente Evaluador:
+\f1\b0  Valida que la respuesta cumpla con la impronta y los anti-patrones antes de la salida.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 7. Filosof\'eda de Implementaci\'f3n\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls6\ilvl0
+\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Desacoplamiento:
+\f1\b0  El motor (Core) es independiente del Perfil. Cambiar un YAML de perfil firma un comportamiento nuevo.\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Independencia de Modelo:
+\f1\b0  Los algoritmos estad\'edsticos (Scoring) deben poder ejecutarse por fuera del LLM para garantizar precisi\'f3n.\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Aprendizaje At-Retrieval:
+\f1\b0  El aprendizaje ocurre al seleccionar qu\'e9 experiencias son mejores para el contexto actual, permitiendo una adaptaci\'f3n r\'e1pida sin reentrenamiento.\
+\ls6\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	4	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Auditabilidad:
+\f1\b0  Cada respuesta debe poder justificar en qu\'e9 casos previos o heur\'edsticas se bas\'f3.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa298\partightenfactor0
+
+\f0\b\fs36 \cf0 \strokec2 8. Stack Tecnol\'f3gico de Referencia\
+\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
+\ls7\ilvl0
+\fs24 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Orquestaci\'f3n:
+\f1\b0  LangGraph.\
+\ls7\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Memoria Vectorial:
+\f1\b0  Qdrant (Hybrid Search: Vector + Metadata).\
+\ls7\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 Base de Datos Relacional:
+\f1\b0  PostgreSQL (para gesti\'f3n de misiones y perfiles).\
+\ls7\ilvl0
+\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 L\'f3gica de Negocio:
+\f1\b0  Python 3.11+.\
+\pard\pardeftab720\partightenfactor0
+\cf3 \strokec3 \
+\pard\pardeftab720\sa280\partightenfactor0
+
+\f0\b\fs28 \cf0 \strokec2 Notas de Evoluci\'f3n\
+\pard\pardeftab720\sa240\partightenfactor0
+
+\f1\b0\fs24 \cf0 Este documento debe actualizarse cada vez que una nueva pieza de l\'f3gica (ej. un nuevo algoritmo de ponderaci\'f3n o un nuevo nivel de memoria) sea validado en el sistema.\
+}

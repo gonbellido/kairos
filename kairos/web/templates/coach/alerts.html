@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Alertas</h1>
+    </div>
+</div>
+
+{% if alerts %}
+<div class="flex flex-col gap-3">
+    {% for alert in alerts %}
+    <a href="/coach/client/{{ alert.cliente_id }}" style="text-decoration: none;">
+        <div class="card
+            {% if alert.nivel == 'urgent' %}card-active
+            {% elif alert.nivel == 'high' %}card-ghost{% endif %}"
+            style="padding: var(--space-4); cursor: pointer; transition: border-color var(--transition-fast); border-left: 3px solid
+            {% if alert.nivel == 'urgent' %}var(--danger)
+            {% elif alert.nivel == 'high' %}var(--warning)
+            {% elif alert.nivel == 'medium' %}var(--info)
+            {% else %}var(--border-default){% endif %};">
+            <div class="flex items-start justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="pulse-dot
+                        {% if alert.nivel == 'urgent' %}danger
+                        {% elif alert.nivel == 'high' %}warning
+                        {% else %}success{% endif %}"></span>
+                    <div>
+                        <div style="font-weight: 500; color: var(--text-primary); font-size: 14px;">
+                            {{ alert.tipo.replace('_', ' ') | title }}
+                        </div>
+                        <div class="body" style="font-size: 13px;">{{ alert.mensaje }}</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="badge
+                        {% if alert.nivel == 'urgent' %}badge-danger
+                        {% elif alert.nivel == 'high' %}badge-warning
+                        {% else %}badge-neutral{% endif %}">
+                        {{ alert.nivel }}
+                    </span>
+                    <span class="text-sm" style="color: var(--accent-teal);">
+                        {{ client_map.get(alert.cliente_id, 'Ver cliente') }} →
+                    </span>
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-state-icon" style="color: var(--success);">◉</div>
+    <p class="empty-state-text">No hay alertas activas. Todo en orden.</p>
+</div>
+{% endif %}
+{% endblock %}

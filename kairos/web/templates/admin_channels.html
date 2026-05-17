@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb">
+            <a href="/admin">← Admin</a>
+        </div>
+        <h1>Canales de Integración</h1>
+        <p class="body" style="margin-top: var(--space-1);">Configura Telegram, WhatsApp y otros canales para tus coaches</p>
+    </div>
+</div>
+
+<!-- Channel status cards -->
+<div class="grid grid-3 mb-6">
+    <div class="card" style="text-align: center;">
+        <div style="font-size: 32px; margin-bottom: var(--space-2);">🤖</div>
+        <h3>Telegram</h3>
+        <div class="flex items-center gap-2 justify-center mt-2">
+            <span class="pulse-dot {% if telegram_bots %}success{% else %}danger{% endif %}"></span>
+            <span class="text-sm">{{ telegram_bots|length }} bots activos</span>
+        </div>
+    </div>
+    <div class="card-ghost" style="text-align: center; opacity: 0.5;">
+        <div style="font-size: 32px; margin-bottom: var(--space-2);">💬</div>
+        <h3>WhatsApp</h3>
+        <span class="badge badge-neutral mt-2">Próximamente</span>
+    </div>
+    <div class="card-ghost" style="text-align: center; opacity: 0.5;">
+        <div style="font-size: 32px; margin-bottom: var(--space-2);">🌐</div>
+        <h3>Web Chat</h3>
+        <span class="badge badge-neutral mt-2">Próximamente</span>
+    </div>
+</div>
+
+<!-- Telegram Configuration per coach -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+        <h3>Configuración Telegram por Coach</h3>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Coach</th>
+                <th>Bot</th>
+                <th>Token</th>
+                <th>Estado</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in coaches %}
+            <tr>
+                <td style="font-weight: 500; color: var(--text-primary);">{{ c.name }}</td>
+                <td class="text-mono" style="font-size: 12px;">
+                    {% if c.get('telegram_bot_name') %}
+                    <a href="https://t.me/{{ c.telegram_bot_name }}" target="_blank" style="color: var(--accent-teal);">@{{ c.telegram_bot_name }}</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td class="text-mono" style="font-size: 12px;">
+                    {% if c.get('telegram_token') %}
+                    {{ c.telegram_token[:12] }}...
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if c.get('telegram_token') %}
+                    <span class="badge badge-success">configurado</span>
+                    {% else %}
+                    <span class="badge badge-neutral">sin token</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="flex gap-1">
+                        <button onclick="openTelegramConfig('{{ c.id }}', '{{ c.name }}', '{{ c.get('telegram_token', '') }}', '{{ c.get('telegram_chat_id', '') }}')"
+                                class="btn btn-ghost btn-sm">Configurar</button>
+                        {% if c.get('telegram_token') %}
+                        <button onclick="activateBot('{{ c.id }}')" class="btn btn-ghost btn-sm" style="color: var(--accent-teal);">Activar</button>
+                        <button onclick="deactivateBot('{{ c.id }}')" class="btn btn-ghost btn-sm text-danger">Apagar</button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Instructions card -->
+<div class="card mt-6" style="border-left: 3px solid var(--accent-indigo);">
+    <h3 class="mb-2">Cómo configurar Telegram</h3>
+    <ol class="body" style="padding-left: 20px; display: flex; flex-direction: column; gap: var(--space-2);">
+        <li>Crea un bot con <a href="https://t.me/BotFather" target="_blank">@BotFather</a> en Telegram</li>
+        <li>Copia el token (ej: <code>123456:ABC-DEF1234ghikl-zyx57W2v1u123ew11</code>)</li>
+        <li>Pega el token en el campo de configuración del coach</li>
+        <li>Opcional: añade tu Chat ID para recibir alertas (consíguelo con <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>)</li>
+        <li>Reinicia el servidor para activar el bot</li>
+    </ol>
+</div>
+
+<!-- Telegram Config Modal -->
+<div id="tg-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="tg-modal-title">Configurar Telegram</h2>
+            <button onclick="closeTgModal()" class="modal-close">&times;</button>
+        </div>
+        <form id="tg-form" onsubmit="return saveTgConfig()">
+            <input type="hidden" id="tg-coach-id">
+            <div class="form-group">
+                <label class="label" for="tg-token">Bot Token (de @BotFather)</label>
+                <input type="text" id="tg-token" class="input" placeholder="123456:ABC-DEF1234ghikl...">
+            </div>
+            <div class="form-group">
+                <label class="label" for="tg-bot-name">Nombre del bot (username sin @)</label>
+                <input type="text" id="tg-bot-name" class="input" placeholder="luismartin_bot">
+            </div>
+            <div class="form-group">
+                <label class="label" for="tg-chat-id">Chat ID para alertas (opcional)</label>
+                <input type="text" id="tg-chat-id" class="input" placeholder="123456789">
+            </div>
+            <div id="tg-status" class="hidden text-sm mb-3"></div>
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="button" onclick="closeTgModal()" class="btn btn-secondary">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openTelegramConfig(id, name, token, chatId) {
+    document.getElementById('tg-coach-id').value = id;
+    document.getElementById('tg-modal-title').textContent = name + ' — Telegram';
+    document.getElementById('tg-token').value = token || '';
+    document.getElementById('tg-bot-name').value = '';
+    document.getElementById('tg-chat-id').value = chatId || '';
+    document.getElementById('tg-modal').classList.remove('hidden');
+}
+
+function closeTgModal() {
+    document.getElementById('tg-modal').classList.add('hidden');
+}
+
+function saveTgConfig() {
+    var id = document.getElementById('tg-coach-id').value;
+    var status = document.getElementById('tg-status');
+    status.classList.remove('hidden');
+    status.textContent = 'Guardando...';
+    status.style.color = 'var(--text-muted)';
+
+    fetch('/admin/coach/' + id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            telegram_token: document.getElementById('tg-token').value,
+            telegram_bot_name: document.getElementById('tg-bot-name').value,
+            telegram_chat_id: document.getElementById('tg-chat-id').value,
+        })
+    }).then(function(res) {
+        if (res.ok) {
+            status.textContent = 'Guardado. Usa el botón Activar para encender el bot.';
+            status.style.color = 'var(--success)';
+            setTimeout(function() { location.reload(); }, 1500);
+        } else {
+            status.textContent = 'Error al guardar';
+            status.style.color = 'var(--danger)';
+        }
+    }).catch(function() {
+        status.textContent = 'Error de conexión';
+        status.style.color = 'var(--danger)';
+    });
+    return false;
+}
+
+function activateBot(coachId) {
+    fetch('/admin/channels/telegram/' + coachId + '/activate', {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            alert('✅ Bot activado!\n\n🤖 @' + data.username + '\n📡 Webhook: ' + data.webhook + '\n\nClientes buscan @' + data.username + ' en Telegram → /start');
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.error || 'Desconocido'));
+        }
+    }).catch(function() { alert('Error de conexión'); });
+}
+
+function deactivateBot(coachId) {
+    if (!confirm('¿Desactivar este bot? Dejará de responder en Telegram.')) return;
+    fetch('/admin/channels/telegram/' + coachId + '/deactivate', {method: 'POST'})
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        alert(data.ok ? '✅ Bot desactivado' : '❌ Error');
+        location.reload();
+    }).catch(function() { alert('Error de conexión'); });
+}
+</script>
+{% endblock %}

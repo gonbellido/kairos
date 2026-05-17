@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>Materiales del Coach</h1>
+    </div>
+    <div class="page-header-right">
+        <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
+                class="btn btn-primary btn-sm">
+            + Subir material
+        </button>
+    </div>
+</div>
+
+<div class="card mb-6">
+    <p class="body">
+        Sube aquí audios, documentos o textos que quieras que estén disponibles para TODOS tus clientes.
+        Cada cliente también tiene su propia memoria con sus audios y conversaciones.
+    </p>
+</div>
+
+<div id="materials-list" class="flex flex-col gap-2">
+    <div id="empty-msg" class="empty-state">
+        <div class="empty-state-icon">▥</div>
+        <p class="empty-state-text">No has subido materiales todavía.</p>
+        <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
+                class="btn btn-primary">
+            + Subir primer material
+        </button>
+    </div>
+</div>
+
+<!-- Upload modal -->
+<div id="upload-modal" class="modal-overlay hidden">
+    <div class="modal">
+        <div class="modal-header">
+            <h2>Subir material</h2>
+            <button onclick="document.getElementById('upload-modal').classList.add('hidden')" class="modal-close">&times;</button>
+        </div>
+        <div class="drop-area" id="drop-area" style="margin-bottom: var(--space-4);">
+            <div style="font-size: 32px; margin-bottom: var(--space-2); opacity: 0.4;">▣</div>
+            <p class="text-sm">Arrastra un archivo o haz clic para seleccionar</p>
+            <p class="text-sm" style="opacity: 0.6; margin-top: var(--space-1);">Audio, PDF, TXT, MD, CSV, JSON</p>
+            <input type="file" id="file-input" class="hidden" accept="audio/*,.txt,.pdf,.md,.csv,.json">
+        </div>
+        <div class="form-group">
+            <label class="label" for="material-tags">Etiquetas (opcional)</label>
+            <input type="text" id="material-tags" class="input" placeholder="ej: meditación, ejercicios, PNL">
+        </div>
+        <div id="upload-status" class="hidden" style="margin-bottom: var(--space-3);">
+            <div class="flex justify-between text-sm mb-1">
+                <span id="upload-filename"></span>
+                <span id="upload-percent" style="font-weight: 600; color: var(--accent-teal);">0%</span>
+            </div>
+            <div class="progress-mini" style="height: 6px;">
+                <div id="upload-progress-bar" class="progress-mini-fill high" style="width: 0%;"></div>
+            </div>
+            <div id="upload-step" class="text-sm mt-1" style="color: var(--text-muted);">Preparando...</div>
+        </div>
+        <div class="flex gap-2">
+            <button id="upload-btn" class="btn btn-primary" style="flex: 1;">Subir</button>
+            <button onclick="document.getElementById('upload-modal').classList.add('hidden')" class="btn btn-secondary" style="flex: 1;">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadMaterials() {
+    const res = await fetch('/api/v1/materials/');
+    const data = await res.json();
+    const container = document.getElementById('materials-list');
+    const empty = document.getElementById('empty-msg');
+    if (!data.materials || data.materials.length === 0) {
+        if (empty) empty.style.display = '';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+    container.innerHTML = data.materials.map(m => `
+        <div class="card flex items-center justify-between" style="padding: var(--space-4);">
+            <div class="flex items-center gap-3">
+                <span style="font-size: 20px; opacity: 0.5;">${m.source_type === 'audio_upload' ? '◉' : '▦'}</span>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="color: var(--text-primary); font-weight: 500; font-size: 14px;">
+                        ${m.metadata?.original_name || 'sin nombre'}
+                        <span class="badge ${m.embedded ? 'badge-success' : (m.status === 'rtf_raw' ? 'badge-warning' : 'badge-danger')}" style="margin-left: 6px; font-size: 10px;">
+                            ${m.embedded ? '✓ embed' : (m.status === 'rtf_raw' ? '⚠ RTF' : '✗ sin texto')}
+                        </span>
+                    </div>
+                    ${m.warning ? '<div class="text-sm" style="color: var(--warning); margin-top: 2px;">' + m.warning + '</div>' : ''}
+                    <div class="text-sm">${new Date(m.created_at).toLocaleDateString()} · ${(m.metadata?.size / 1024).toFixed(0) || '?'}KB</div>
+                </div>
+            </div>
+            <button onclick="deleteMaterial('${m.id}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
+        </div>
+    `).join('');
+}
+
+async function deleteMaterial(id) {
+    try {
+        const res = await fetch('/api/v1/materials/' + id, {method: 'DELETE'});
+        const data = await res.json();
+        if (data.status === 'deleted') {
+            loadMaterials();
+        } else {
+            console.warn('Delete failed:', data);
+            loadMaterials();  // refresh anyway
+        }
+    } catch(e) {
+        console.error('Delete error:', e);
+        loadMaterials();
+    }
+}
+
+// Upload handling
+const fileInput = document.getElementById('file-input');
+const dropArea = document.getElementById('drop-area');
+dropArea?.addEventListener('click', () => fileInput?.click());
+dropArea?.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('dragover'); });
+dropArea?.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
+dropArea?.addEventListener('drop', (e) => {
+    e.preventDefault(); dropArea.classList.remove('dragover');
+    fileInput.files = e.dataTransfer.files;
+});
+
+fileInput?.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (file) {
+        document.getElementById('upload-filename').textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    }
+});
+
+document.getElementById('upload-btn')?.addEventListener('click', () => {
+    const file = fileInput?.files[0];
+    if (!file) return;
+
+    const status = document.getElementById('upload-status');
+    const bar = document.getElementById('upload-progress-bar');
+    const pct = document.getElementById('upload-percent');
+    const step = document.getElementById('upload-step');
+    const btn = document.getElementById('upload-btn');
+
+    status.classList.remove('hidden');
+    btn.disabled = true;
+    btn.textContent = 'Subiendo...';
+
+    const form = new FormData();
+    form.append('file', file);
+    const tags = document.getElementById('material-tags').value;
+    if (tags) form.append('tags', tags);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+            const percent = Math.round((e.loaded / e.total) * 100);
+            bar.style.width = percent + '%';
+            pct.textContent = percent + '%';
+            if (percent < 100) {
+                step.textContent = 'Subiendo archivo...';
+            } else {
+                step.textContent = 'Procesando embedding y chunking...';
+            }
+        }
+    });
+
+    xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+            bar.style.width = '100%';
+            pct.textContent = '100%';
+            step.textContent = '✓ Completado';
+            step.style.color = 'var(--success)';
+            setTimeout(() => {
+                document.getElementById('upload-modal').classList.add('hidden');
+                loadMaterials();
+            }, 800);
+        } else {
+            step.textContent = 'Error al subir';
+            step.style.color = 'var(--danger)';
+            btn.disabled = false;
+            btn.textContent = 'Reintentar';
+        }
+    });
+
+    xhr.addEventListener('error', () => {
+        step.textContent = 'Error de conexión';
+        step.style.color = 'var(--danger)';
+        btn.disabled = false;
+        btn.textContent = 'Reintentar';
+    });
+
+    xhr.open('POST', '/api/v1/materials/upload');
+    xhr.send(form);
+});
+
+loadMaterials();
+</script>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <h1>🎭 Tu Impronta</h1>
+        <p class="body" style="margin-top: var(--space-1);">Ajusta cómo se comporta KAIROS cuando habla con tus clientes. Esto define tu "sello" como coach.</p>
+    </div>
+</div>
+
+<div class="flex flex-col gap-4">
+    <div class="card">
+        <h3 class="mb-4">Estilo de coaching</h3>
+        <p class="body mb-4">Mueve los sliders para definir cómo quieres que el agente se comunique con tus clientes. Los cambios se aplican a todas las sesiones nuevas.</p>
+        <form id="imprint-form">
+            {% set impronta = coach.get('impronta', {}) %}
+            {% for item in [
+                ('directividad', 'Directividad', '0 = sugiere sutilmente, 10 = instruye con claridad', impronta.get('directividad', 0.5)),
+                ('emocionalidad', 'Emocionalidad', '0 = neutro y analítico, 10 = empático y expresivo', impronta.get('emocionalidad', 0.5)),
+                ('analiticidad', 'Analiticidad', '0 = intuitivo, 10 = basado en datos', impronta.get('analiticidad', 0.5)),
+                ('riesgo', 'Apertura al riesgo', '0 = conservador, 10 = desafiante', impronta.get('riesgo', 0.3)),
+                ('formalidad', 'Formalidad', '0 = coloquial, 10 = formal y estructurado', impronta.get('formalidad', 0.5)),
+                ('proactividad', 'Proactividad', '0 = reactivo (responde), 10 = proactivo (propone)', impronta.get('proactividad', 0.5)),
+            ] %}
+            <div class="mb-4">
+                <div class="flex justify-between text-sm mb-1">
+                    <span style="font-weight: 500;">{{ item[1] }}</span>
+                    <span class="text-mono" id="val-{{ item[0] }}">{{ (item[3] * 10)|round|int }}/10</span>
+                </div>
+                <input type="range" name="{{ item[0] }}" min="0" max="10" step="1" value="{{ (item[3] * 10)|round|int }}"
+                       class="slider" oninput="document.getElementById('val-{{ item[0] }}').textContent = this.value + '/10'"
+                       style="width: 100%; accent-color: var(--accent-teal);">
+                <div class="text-sm" style="color: var(--text-muted); margin-top: 2px;">{{ item[2] }}</div>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary" style="margin-top: 12px;">Guardar impronta</button>
+            <span id="save-status" class="text-sm" style="margin-left: 12px;"></span>
+        </form>
+    </div>
+
+    <div class="card" style="border-left: 3px solid var(--accent-indigo);">
+        <h3 class="mb-2">¿Cómo funciona?</h3>
+        <p class="body">Cada vez que un cliente habla con tu agente, el sistema incluye estos valores en el prompt. El LLM adapta su tono, nivel de directividad y estilo según esta configuración.</p>
+        <p class="body mt-2">Ejemplo: con <strong>Directividad 9/10</strong>, el agente dirá "Haz esto". Con <strong>Directividad 2/10</strong>, preguntará "¿Has considerado...?"</p>
+    </div>
+</div>
+
+<script>
+document.getElementById('imprint-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {};
+    new FormData(e.target).forEach((v, k) => data[k] = parseInt(v) / 10);
+    const status = document.getElementById('save-status');
+    status.textContent = 'Guardando...';
+    try {
+        const res = await fetch('/coach/imprint', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({impronta: data})
+        });
+        if (res.ok) {
+            status.textContent = '✓ Guardado';
+            status.style.color = 'var(--success)';
+        } else {
+            status.textContent = 'Error';
+            status.style.color = 'var(--danger)';
+        }
+    } catch(e) {
+        status.textContent = 'Error de conexión';
+        status.style.color = 'var(--danger)';
+    }
+});
+</script>
+{% endblock %}

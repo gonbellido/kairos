@@ -1,0 +1,72 @@
+{
+  "coaches": [
+    {
+      "id": "cf27b406bd9d94b4",
+      "email": "admin@kairos.app",
+      "name": "Admin",
+      "role": "admin",
+      "password_hash": "c861a81c7f42ec3411df14166777238be4d43c4c35189509423e74cbf840862e",
+      "salt": "62fbe268599e754b0bba9982cb464249",
+      "created_at": "2026-04-27T09:07:39.094362+00:00"
+    },
+    {
+      "id": "177dde25ff03be3f",
+      "email": "coach@kairos.app",
+      "name": "Coach Demo",
+      "role": "coach",
+      "password_hash": "c86d77047f45292ad959f8da7120a4b0f357e27fbee24dd5dcb5b042531ff9d0",
+      "salt": "fa9b3f8f3415eaaaaaa62e9a59c8e2ac",
+      "created_at": "2026-04-27T09:07:39.106346+00:00"
+    }
+  ],
+  "sessions": {
+    "ef8edf08d8ca1f882b3a53508ff3299ba459aad9c0a9ed35afa875a2e8d5b971": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T09:10:47.464419+00:00"
+    },
+    "051ee2100ae3d80cefc0ab84fb6cecf8cc18ba5d242c4a54cb2a2a957de350a4": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T09:17:28.682586+00:00"
+    },
+    "7c0040bf5faee213881f8304b623453126363ca354cb5ffffc8bd2136e4c5519": {
+      "coach_id": "cf27b406bd9d94b4",
+      "created_at": "2026-04-27T09:20:32.308404+00:00"
+    },
+    "331b1fc6a56367b0e674f03f15e3e0c31881fad1e9edd3f0c4b94ccfb3ea83b5": {
+      "coach_id": "cf27b406bd9d94b4",
+      "created_at": "2026-04-27T09:21:18.890635+00:00"
+    },
+    "55ef5cbc4bb4c70fba48e29e8a38949a0648703223b62f57c465c7391c1b1439": {
+      "coach_id": "cf27b406bd9d94b4",
+      "created_at": "2026-04-27T10:06:14.702178+00:00"
+    },
+    "a895e660a91a3590e1d63c0b09e6f2bdbfb72597df811a7f870590958bc668fd": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T10:09:21.802966+00:00"
+    },
+    "5d20a9c7cb63a361c79985a2bf5da6cd9d67c641ff4fd61efa12f26ad8044a1f": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T10:14:58.561880+00:00"
+    },
+    "16e0f138898eee17390dba4a67e7a6f4b0f02d8737f4866bb9851a2539e98a8d": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T10:18:43.584356+00:00"
+    },
+    "e1f8694e0cbb2de47666671eac6798b7f6f194fbe946da255869412cb0128429": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T14:25:20.747827+00:00"
+    },
+    "74154c48726b216c73dcae1aa1ab43801f952f1910e597feaa3b095451c822e5": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T14:29:18.643476+00:00"
+    },
+    "eae9da8dabaf4a86c1b30be90bd3dfc0a48b309fde8b4010633fed2c576e2098": {
+      "coach_id": "177dde25ff03be3f",
+      "created_at": "2026-04-27T14:35:00.168693+00:00"
+    },
+    "2053c88f3cf5537b254f2da82598dd16708e823f384f1b062001bbba2f3256f6": {
+      "coach_id": "cf27b406bd9d94b4",
+      "created_at": "2026-04-28T09:05:11.368788+00:00"
+    }
+  }
+}

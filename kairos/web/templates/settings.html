@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left"><h1>Configuración</h1></div>
+</div>
+
+<!-- Default Journey -->
+<div class="card mb-4">
+    <h3 class="mb-3">🧭 Journey por defecto</h3>
+    <p class="body mb-3">Este journey se asigna automáticamente a todo nuevo cliente que llegue por cualquier canal (web, Telegram, WhatsApp).</p>
+    <div class="flex items-center gap-3">
+        <select id="default-journey" class="input" style="max-width: 350px;" onchange="saveDefaultJourney()">
+            <option value="">— Sin journey por defecto —</option>
+            {% for j in journeys %}
+            <option value="{{ j.id }}" {% if coach.get('default_journey_id','') == j.id %}selected{% endif %}>{{ j.name }} ({{ j.profile_type }})</option>
+            {% endfor %}
+        </select>
+        <span id="dj-status" class="text-sm"></span>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <h3 class="mb-3">{{ t('settings_channels') }}</h3>
+    <p class="body mb-4">{{ t('settings_channels_hint') or 'Elige cómo y cuándo recibir notificaciones.' }}</p>
+
+    {% set notif = coach.get('notification_settings', {}) or {} %}
+    {% set channels = notif.get('channels', {}) %}
+    {% for ch in [
+        ('email','📧 Email','daily'),
+        ('sms','📱 SMS','immediate'),
+        ('push','🔔 Push','immediate'),
+        ('whatsapp','💬 WhatsApp','daily'),
+    ] %}
+    {% set cfg = channels.get(ch[0], {}) %}
+    <div class="flex items-center justify-between py-3" style="border-bottom: 1px solid var(--border-subtle);">
+        <div><span style="font-weight: 500;">{{ ch[1] }}</span></div>
+        <div class="flex items-center gap-3">
+            <select class="input input-sm" style="width: 160px;" data-channel="{{ ch[0] }}">
+                <option value="immediate" {% if cfg.get('frequency',ch[2])=='immediate' %}selected{% endif %}>{{ t('settings_immediate') or 'Inmediato' }}</option>
+                <option value="daily" {% if cfg.get('frequency',ch[2])=='daily' %}selected{% endif %}>{{ t('settings_daily') or 'Diario' }}</option>
+                <option value="weekly" {% if cfg.get('frequency',ch[2])=='weekly' %}selected{% endif %}>{{ t('settings_weekly') or 'Semanal' }}</option>
+            </select>
+            <label class="toggle {% if cfg.get('enabled', ch[0]=='email' or ch[0]=='push') %}active{% endif %}" style="cursor: pointer;">
+                <input type="checkbox" {% if cfg.get('enabled', ch[0]=='email' or ch[0]=='push') %}checked{% endif %} style="display: none;">
+            </label>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card mb-4">
+    <h3 class="mb-3">{{ t('settings_quiet_hours') }}</h3>
+    {% set quiet = notif.get('quiet_hours', {'start':'22:00','end':'08:00'}) %}
+    <div class="flex items-center gap-3">
+        <div><label class="label">{{ t('settings_start') }}</label><input type="time" id="quiet-start" class="input" value="{{ quiet.get('start','22:00') }}" style="width: 120px;"></div>
+        <div><label class="label">{{ t('settings_end') }}</label><input type="time" id="quiet-end" class="input" value="{{ quiet.get('end','08:00') }}" style="width: 120px;"></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <h3 class="mb-3">{{ t('settings_download_data') }}</h3>
+    <p class="body mb-3">{{ t('settings_download_hint') or 'Exporta todos tus datos en formato JSON.' }}</p>
+    <button class="btn btn-secondary" onclick="alert('Download requested')">{{ t('settings_download_btn') or '📥 Descargar Datos' }}</button>
+</div>
+
+<button class="btn btn-primary" onclick="saveCoachSettings()" style="margin-right: 12px;">{{ t('settings_save_notif') }}</button>
+<span id="status" class="text-sm"></span>
+
+<script>
+async function saveCoachSettings() {
+    const channels = {};
+    document.querySelectorAll('[data-channel]').forEach(sel => {
+        const ch = sel.dataset.channel;
+        const toggle = sel.parentElement.querySelector('input[type=checkbox]');
+        channels[ch] = {enabled: toggle?.checked ?? false, frequency: sel.value};
+    });
+    const payload = {notification: {channels, quiet_hours: {start: document.getElementById('quiet-start')?.value || '22:00', end: document.getElementById('quiet-end')?.value || '08:00'}}};
+    const s = document.getElementById('status');
+    s.textContent = '{{ t("settings_saving") }}';
+    const res = await fetch('/api/v1/settings/me', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    s.textContent = res.ok ? '{{ t("settings_saved") }}' : '{{ t("settings_error") }}';
+    s.style.color = res.ok ? 'var(--success)' : 'var(--danger)';
+}
+
+async function saveDefaultJourney() {
+    const jid = document.getElementById('default-journey').value;
+    const s = document.getElementById('dj-status');
+    s.textContent = 'Guardando...';
+    const res = await fetch('/coach/default-journey', {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({journey_id: jid})});
+    s.textContent = res.ok ? '✓' : 'Error';
+    s.style.color = res.ok ? 'var(--success)' : 'var(--danger)';
+}
+</script>
+{% endblock %}

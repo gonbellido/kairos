@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAIROS — {{ client.nombre }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/components.css">
+    <link rel="stylesheet" href="/static/css/layout.css">
+</head>
+<body class="app">
+    <header class="topbar" style="justify-content: space-between;">
+        <a href="/client/dashboard" class="topbar-logo" style="text-decoration: none;">KAIROS</a>
+        <div class="flex items-center gap-2">
+            <span class="text-sm lg-only">{{ client.nombre }}</span>
+            <a href="/client/logout" class="btn btn-ghost btn-sm text-danger">Salir</a>
+        </div>
+    </header>
+    <main class="main">
+        <div class="content" style="max-width: 900px;">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1>👋 Hola, {{ client.nombre }}</h1>
+                </div>
+                <div class="page-header-right">
+                    <a href="/client/settings" class="btn btn-ghost btn-sm">⚙</a>
+                    <a href="/client/chat" class="btn btn-primary">Nueva conversación</a>
+                </div>
+            </div>
+
+            {% if journey %}
+            <div class="card mb-6" style="border-left: 3px solid var(--accent-teal);">
+                <div class="flex items-center justify-between mb-3">
+                    <h3>🧭 {{ journey.name }}</h3>
+                    <span class="badge badge-teal">{{ journey.status }}</span>
+                </div>
+                <p class="body mb-3">{{ journey.objective }}</p>
+                <div class="grid grid-4 gap-3 text-center">
+                    <div><div class="stat-value" style="font-size: 18px;">{{ journey.progress_pct }}%</div><div class="text-sm">Progreso</div></div>
+                    <div><div class="stat-value" style="font-size: 18px;">{{ journey.current_phase or '—' }}</div><div class="text-sm">Fase actual</div></div>
+                    <div><div class="stat-value" style="font-size: 18px;">{{ journey.current_agent or '—' }}</div><div class="text-sm">Agente</div></div>
+                    <div><div class="stat-value" style="font-size: 18px;">{{ journey.phases_count or 0 }}</div><div class="text-sm">Total fases</div></div>
+                </div>
+                {% if journey.tasks %}
+                <div class="mt-3 pt-3" style="border-top: 1px solid var(--border-subtle);">
+                    <h4 class="mb-2">Tareas pendientes</h4>
+                    {% for t in journey.tasks %}
+                    <div class="flex items-center gap-2 text-sm py-1"><span style="color: var(--accent-teal);">○</span> {{ t.title }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Progress -->
+            <div class="grid grid-4 mb-6">
+                <div class="stat-card" style="text-align: center;">
+                    <div class="stat-value">{{ sessions|length if sessions else 0 }}</div>
+                    <div class="stat-label">Sesiones</div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div class="stat-value score-value {% if client.progreso.score_global > 0.6 %}score-high{% elif client.progreso.score_global > 0.3 %}score-mid{% else %}score-low{% endif %}">
+                        {{ (client.progreso.score_global * 100)|int }}%
+                    </div>
+                    <div class="stat-label">Score Global</div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div class="stat-value">{{ client.estado_actual.emocional }}</div>
+                    <div class="stat-label">Estado actual</div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div class="stat-value">{{ client.historial.get('mensajes', 0) }}</div>
+                    <div class="stat-label">Mensajes</div>
+                </div>
+            </div>
+
+            <!-- State bars -->
+            <div class="card mb-6">
+                <h3 class="mb-3">Tu progreso</h3>
+                {% set s = client.estado_actual %}
+                {% for label, key, color in [('Claridad', 'claridad', 'high'), ('Energía', 'energia', 'high'), ('Resistencia', 'resistencia', 'low')] %}
+                <div class="mb-3">
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-secondary">{{ label }}</span>
+                        <span class="text-mono">{{ (s[key] * 100)|int }}%</span>
+                    </div>
+                    <div class="progress-mini">
+                        <div class="progress-mini-fill {{ color }}" style="width: {{ s[key] * 100 }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="grid grid-4 gap-2 text-center mt-4 pt-4" style="border-top: 1px solid var(--border-subtle);">
+                    {% for label, val in [('Claridad', client.progreso.senales.claridad), ('Acción', client.progreso.senales.accion), ('Apertura', client.progreso.senales.apertura), ('Consistencia', client.progreso.senales.consistencia)] %}
+                    <div>
+                        <div class="score-value {% if val > 0.6 %}score-high{% elif val > 0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size: 18px;">
+                            {{ (val * 100)|int }}%
+                        </div>
+                        <div class="text-sm">{{ label }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Recent sessions -->
+            <div class="card mb-6">
+                <h3 class="mb-3">Historial de sesiones</h3>
+                {% if sessions %}
+                <div class="flex flex-col gap-2">
+                    {% for s in sessions[-10:]|reverse %}
+                    <div class="flex items-center gap-3 p-3" style="background: var(--bg-tertiary); border-radius: var(--radius-md);">
+                        <div class="avatar avatar-md" style="background: var(--accent-teal-muted); color: var(--accent-teal); font-size: 11px;">
+                            {{ s.message_count or '?' }}
+                        </div>
+                        <div class="flex-1">
+                            <div style="font-size: 13px; font-weight: 500;">Sesión {{ s.id[:8] }}</div>
+                            <div class="text-sm">{{ s.created_at.strftime('%d/%m/%y %H:%M') if s.created_at else '—' }} · {{ s.message_count }} mensajes</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm" style="text-align: center; padding: var(--space-6);">Aún no tienes sesiones. ¡Empieza una nueva conversación!</p>
+                {% endif %}
+            </div>
+
+            <!-- Message coach -->
+            <div class="card" style="border-left: 3px solid var(--accent-indigo);">
+                <h3 class="mb-2">Consultar a tu coach</h3>
+                <p class="body mb-3">¿Tienes dudas? Deja un mensaje para tu coach y te responderá.</p>
+                <form id="msg-form" class="flex gap-2">
+                    <input id="msg-input" type="text" class="input flex-1" placeholder="Escribe tu consulta...">
+                    <button type="submit" class="btn btn-primary">Enviar</button>
+                </form>
+                <div id="msg-status" class="hidden text-sm mt-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    document.getElementById('msg-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('msg-input');
+        const status = document.getElementById('msg-status');
+        if (!input.value.trim()) return;
+        status.classList.remove('hidden');
+        status.textContent = 'Enviando...';
+        status.style.color = 'var(--text-muted)';
+        // TODO: implementar endpoint de mensajes al coach
+        setTimeout(() => {
+            status.textContent = '✓ Mensaje enviado a tu coach';
+            status.style.color = 'var(--success)';
+            input.value = '';
+            setTimeout(() => status.classList.add('hidden'), 3000);
+        }, 500);
+    });
+    </script>
+</body>
+</html>
