@@ -316,6 +316,15 @@ async def update_journey(req: Request, journey_id: str):
     return {"ok": True, "journey": j} if j else {"ok": False}
 
 
+@router.delete("/api/v1/journeys/{journey_id}")
+async def delete_journey_web(req: Request, journey_id: str):
+    coach = await _get_coach(req)
+    if not coach: return JSONResponse({"ok": False}, status_code=403)
+    je = req.app.state.journey_engine
+    ok = await je.delete_journey(journey_id)
+    return {"ok": ok}
+
+
 @router.post("/api/v1/journeys/{journey_id}/phases")
 async def add_phase(req: Request, journey_id: str):
     coach = await _get_coach(req)
@@ -335,6 +344,16 @@ async def update_phase(req: Request, phase_id: str):
     je = req.app.state.journey_engine
     p = await je.update_phase(phase_id, **body)
     return {"ok": True, "phase": p} if p else {"ok": False}
+
+
+@router.put("/api/v1/journeys/phases/{phase_id}/reorder")
+async def reorder_phase_web(req: Request, phase_id: str):
+    coach = await _get_coach(req)
+    if not coach: return JSONResponse({"ok": False}, status_code=403)
+    body = await req.json()
+    je = req.app.state.journey_engine
+    ok = await je.reorder_phase(phase_id, direction=body.get("direction", "up"))
+    return {"ok": ok}
 
 
 @router.post("/api/v1/journeys/{journey_id}/agents")

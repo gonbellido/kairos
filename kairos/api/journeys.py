@@ -29,6 +29,7 @@ class JourneyUpdate(BaseModel):
 class PhaseCreate(BaseModel):
     name: str
     agent_role: str = ""
+    objective: str = ""
     system_prompt: str = ""
     expects_json: bool = False
     tag_mappings: dict | None = None
@@ -177,7 +178,7 @@ async def create_phase(journey_id: str, body: PhaseCreate, req: Request):
         phase_id = uuid4().hex[:12]
         phase = JourneyPhaseModel(
             id=phase_id, journey_id=journey_id,
-            name=body.name, objective=body.agent_role,
+            name=body.name, objective=body.objective,
             order_index=next_order,
         )
         s.add(phase)
