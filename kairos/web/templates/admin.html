@@ -33,7 +33,7 @@
                 <td><span class="badge {% if c.plan == 'pro' %}badge-teal{% elif c.plan == 'admin' %}badge-indigo{% else %}badge-neutral{% endif %}">{{ c.get('plan', 'free') }}</span></td>
                 <td><span class="badge badge-neutral">{{ {'es': '🇪🇸 ES', 'en': '🇬🇧 EN'}.get(c.get('language', 'es'), c.get('language', 'es')) }}</span></td>
                 <td><span class="badge badge-neutral">{{ c.role }}</span></td>
-                <td><span class="text-sm">{{ journeys|selectattr('id', 'equalto', c.get('default_journey_id', ''))|first|attr('name') or '—' }}</span></td>
+                <td><span class="text-sm">{% set jid = c.get('default_journey_id', '') %}{% if jid %}{{ journeys|selectattr('id', 'equalto', jid)|map(attribute='name')|first|default('—') }}{% else %}—{% endif %}</span></td>
                 <td><span class="text-sm">{{ c.created_at[:10] if c.created_at else '' }}</span></td>
                 <td>
                     <div class="flex gap-1">

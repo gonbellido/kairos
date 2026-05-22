@@ -100,14 +100,19 @@ async def admin_page(req: Request):
     coach_db = req.app.state.coach_db
     coaches = await coach_db.list_coaches()
     journeys = []
-    je = req.app.state.journey_engine
-    if je:
-        try:
-            journeys = await je.list_journeys("default", full=False)
+    try:
+        je = req.app.state.journey_engine
+        logger.info("Admin page je=%s", type(je).__name__ if je else "None")
+        if je:
+            default_j = await je.list_journeys("default", full=False)
             coach_j = await je.list_journeys(coach["id"], full=False)
-            journeys = journeys + coach_j
-        except Exception:
-            pass
+            journeys = default_j + coach_j
+            logger.info("Admin page: default=%d coach=%d total=%d",
+                        len(default_j), len(coach_j), len(journeys))
+        else:
+            logger.warning("Admin page: journey_engine is None")
+    except Exception as e:
+        logger.error("Admin page error loading journeys: %s", e, exc_info=True)
     return _render(req, "admin.html", {"title": "Admin", "coaches": coaches, "coach": coach, "journeys": journeys})
 
 

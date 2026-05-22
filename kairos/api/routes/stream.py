@@ -37,14 +37,19 @@ async def chat_stream(req: Request, body: StreamRequest):
         try:
             cj = await je.get_client_journey(client_id)
             if not cj:
-                default_journeys = await je.list_journeys("default", full=False)
                 coach_db = req.app.state.coach_db
                 coach_info = await coach_db.get_by_id(body.user_id)
                 coach_default_id = coach_info.get("default_journey_id", "") if coach_info else ""
-                coaching = next((j for j in default_journeys if j["id"] == coach_default_id), None)
+
+                # Search both default journeys AND coach's own journeys
+                default_j = await je.list_journeys("default", full=False)
+                coach_j = await je.list_journeys(body.user_id, full=False) if body.user_id != "default" else []
+                all_journeys = default_j + [j for j in coach_j if j["id"] not in {x["id"] for x in default_j}]
+
+                coaching = next((j for j in all_journeys if j["id"] == coach_default_id), None)
                 if not coaching:
-                    coaching = next((j for j in default_journeys if j.get("profile_type") == "coaching"),
-                                    default_journeys[0] if default_journeys else None)
+                    coaching = next((j for j in all_journeys if j.get("profile_type") == "coaching"),
+                                    all_journeys[0] if all_journeys else None)
                 if coaching:
                     await je.assign_client(client_id, body.user_id, coaching["id"])
                     cj = await je.get_client_journey(client_id)

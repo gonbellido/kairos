@@ -114,6 +114,28 @@ async function deleteMaterial(id) {
 // Upload handling
 const fileInput = document.getElementById('file-input');
 const dropArea = document.getElementById('drop-area');
+
+function resetUploadModal() {
+    document.getElementById('upload-status').classList.add('hidden');
+    document.getElementById('upload-progress-bar').style.width = '0%';
+    document.getElementById('upload-percent').textContent = '0%';
+    document.getElementById('upload-step').textContent = 'Preparando...';
+    document.getElementById('upload-step').style.color = '';
+    document.getElementById('upload-btn').disabled = false;
+    document.getElementById('upload-btn').textContent = 'Subir';
+    document.getElementById('upload-filename').textContent = '';
+    if (fileInput) fileInput.value = '';
+}
+
+// Reset modal state every time it opens
+const uploadModal = document.getElementById('upload-modal');
+const observer = new MutationObserver(() => {
+    if (!uploadModal.classList.contains('hidden')) {
+        resetUploadModal();
+    }
+});
+observer.observe(uploadModal, { attributes: true, attributeFilter: ['class'] });
+
 dropArea?.addEventListener('click', () => fileInput?.click());
 dropArea?.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('dragover'); });
 dropArea?.addEventListener('dragleave', () => dropArea.classList.remove('dragover'));
