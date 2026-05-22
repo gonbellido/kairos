@@ -70,6 +70,57 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-
 - Dev local: `/opt/kairos/.env`
 - NO debe existir `/opt/kairos/.env` en producción (sobrescribe vars de `.env.production` via docker compose)
 
+## Voice Agent System
+
+### Arquitectura
+```
+Cliente (navegador) ──WebRTC──► LiveKit Server ──► voice_agent.py (STT→LLM→TTS)
+                                      ▲
+Cliente (chat UI) ──HTTP──► /api/v1/voice/token ──► LiveKit AccessToken
+```
+
+### Componentes
+
+| Archivo | Rol |
+|---|---|
+| `kairos/engine/voice_agent.py` | LiveKit Agent Server. Pipeline: DeepGram STT → OpenAI/DeepSeek LLM → Cartesia Sonic-3 TTS + Silero VAD + AiCoustics noise cancellation + Multilingual turn detection |
+| `kairos/api/routes/voice.py` | Endpoints: `GET /api/v1/voice/token` (genera token LiveKit), `POST /api/v1/voice/tts` (TTS vía Cartesia REST) |
+| `kairos/engine/emotional_tts.py` | Mapea sentimiento del clasificador (positive/negative/urgent/neutral) → prompt + estilo de voz |
+| `kairos/web/templates/client_chat.html` | Botón 📞 en input area → LiveKit client SDK → WebRTC room |
+
+### Endpoints
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/api/v1/voice/token` | Genera token JWT para room LiveKit del cliente. Requiere cookie `kairos_client_token` |
+| POST | `/api/v1/voice/tts` | Text → audio WAV base64 vía Cartesia Sonic-3. Body: `{"text": "..."}` |
+| WS | LiveKit URL | Conexión WebRTC directa con el voice agent |
+
+### Env vars requeridas
+
+```
+LIVEKIT_URL=wss://tu-servidor-livekit.com
+LIVEKIT_API_KEY=...
+LIVEKIT_API_SECRET=...
+CARTESIA_API_KEY=...
+DEEPGRAM_API_KEY=...
+```
+
+### Servicio Docker
+
+```yaml
+voice:
+  build: .
+  command: python -m kairos.engine.voice_agent start
+  env_file: .env.production
+```
+
+### Dependencias (pyproject.toml)
+```
+voice = ["livekit-agents>=1.5", "livekit-plugins-cartesia", "livekit-plugins-silero",
+         "livekit-plugins-deepgram", "livekit-plugins-openai"]
+```
+
 ## Servicios
 | Servicio | Puerto interno | Healthcheck |
 |----------|---------------|-------------|
