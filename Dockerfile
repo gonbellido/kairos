@@ -16,7 +16,7 @@ COPY obsidian_templates/ /app/obsidian_templates/
 COPY main.py /app/main.py
 
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir ".[dev]"
+    pip install --no-cache-dir ".[all]"
 
 
 FROM python:3.13-slim
