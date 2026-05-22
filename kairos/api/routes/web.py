@@ -340,6 +340,17 @@ async def delete_journey_web(req: Request, journey_id: str):
     return {"ok": ok}
 
 
+@router.post("/api/v1/journeys/{journey_id}/clone")
+async def clone_journey_web(req: Request, journey_id: str):
+    coach = await _get_coach(req)
+    if not coach: return JSONResponse({"ok": False}, status_code=403)
+    je = req.app.state.journey_engine
+    cloned = await je.clone_journey(journey_id)
+    if not cloned:
+        return JSONResponse({"ok": False, "error": "Journey not found"}, status_code=404)
+    return {"ok": True, "journey": cloned}
+
+
 @router.post("/api/v1/journeys/{journey_id}/phases")
 async def add_phase(req: Request, journey_id: str):
     coach = await _get_coach(req)

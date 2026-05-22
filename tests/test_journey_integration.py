@@ -90,3 +90,45 @@ async def test_journey_nodes_logic():
     assert advance_result["journey_advanced"] is True
     assert advance_result["journey_context"]["current_agent_id"] == "agent_2"
     assert advance_result["final_response"] == "Modified Response"
+
+
+@pytest.mark.asyncio
+async def test_clone_journey():
+    from kairos.engine.journey_engine import JourneyEngine
+    from kairos.db.session import create_session_factory
+    sf = create_session_factory()
+    je = JourneyEngine(sf)
+
+    j = await je.create_journey(coach_id="test", name="Original",
+                                description="Desc", objective="Obj",
+                                profile_type="coaching")
+    jid = j["id"]
+    p = await je.add_phase(jid, name="Fase 1", objective="Obj 1", order_index=1)
+    await je.add_agent(jid, p["id"], name="Agent 1", system_prompt="SP",
+                       collects_fields=["name"], output_schema={"structured": {"required_fields": {"name": "str"}}},
+                       tag_mappings={"next": 2})
+
+    cloned = await je.clone_journey(jid)
+    assert cloned is not None
+    assert cloned["id"] != jid
+    assert "Copia de Original" in cloned["name"]
+    assert cloned["status"] == "draft"
+    assert len(cloned.get("phases", [])) == 1
+    assert len(cloned.get("agents", [])) == 1
+    assert cloned["agents"][0]["name"] == "Agent 1"
+
+    original = await je.get_journey(jid)
+    assert original["name"] == "Original"
+
+    await je.delete_journey(jid)
+    await je.delete_journey(cloned["id"])
+
+
+@pytest.mark.asyncio
+async def test_clone_nonexistent_journey():
+    from kairos.engine.journey_engine import JourneyEngine
+    from kairos.db.session import create_session_factory
+    sf = create_session_factory()
+    je = JourneyEngine(sf)
+    result = await je.clone_journey("nonexistent")
+    assert result is None

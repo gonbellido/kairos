@@ -291,6 +291,51 @@ class JourneyEngine:
             await s.commit()
             return True
 
+    async def clone_journey(self, journey_id: str) -> dict | None:
+        original = await self.get_journey(journey_id)
+        if not original:
+            return None
+        new_id = uuid4().hex[:12]
+        phase_id_map = {}
+        async with self._sf() as s:
+            orig_model = await s.get(JourneyModel, journey_id)
+            if not orig_model:
+                return None
+            new_j = JourneyModel(
+                id=new_id, coach_id=orig_model.coach_id,
+                name=f"Copia de {orig_model.name}",
+                description=orig_model.description, objective=orig_model.objective,
+                profile_type=orig_model.profile_type, status="draft",
+                tag_mappings=orig_model.tag_mappings,
+            )
+            s.add(new_j)
+            for phase in original.get("phases", []):
+                new_pid = uuid4().hex[:12]
+                phase_id_map[phase["id"]] = new_pid
+                new_p = JourneyPhaseModel(
+                    id=new_pid, journey_id=new_id,
+                    name=phase["name"], objective=phase.get("objective", ""),
+                    order_index=phase["order_index"],
+                )
+                s.add(new_p)
+            for agent in original.get("agents", []):
+                new_a = JourneyAgentModel(
+                    id=uuid4().hex[:12], journey_id=new_id,
+                    phase_id=phase_id_map.get(agent["phase_id"], ""),
+                    name=agent["name"], role=agent.get("role", ""),
+                    goal=agent.get("goal", ""),
+                    system_prompt=agent.get("system_prompt", ""),
+                    instructions=agent.get("instructions", ""),
+                    collects_fields=agent.get("collects_fields", []),
+                    output_schema=agent.get("output_schema", {}),
+                    tag_mappings=agent.get("tag_mappings", {}),
+                    order_index=agent.get("order_index", 0),
+                    is_active=agent.get("is_active", True),
+                )
+                s.add(new_a)
+            await s.commit()
+        return await self.get_journey(new_id)
+
     async def reorder_phase(self, phase_id: str, direction: str = "up") -> bool:
         async with self._sf() as s:
             p = await s.get(JourneyPhaseModel, phase_id)

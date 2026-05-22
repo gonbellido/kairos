@@ -36,6 +36,7 @@
             <div class="flex items-center gap-2">
                 <span class="text-sm" style="color: var(--text-muted);">{{ (j.phases or [])|length }} fases · {{ (j.agents or [])|length }} agentes</span>
                 <button onclick="editJourney('{{ j.id }}','{{ j.name }}','{{ j.description|replace('\n','\\n') }}','{{ j.objective|replace('\n','\\n') }}','{{ j.status }}')" class="btn btn-ghost btn-sm">Editar</button>
+                <button onclick="cloneJourney('{{ j.id }}')" class="btn btn-ghost btn-sm">Duplicar</button>
                 <button onclick="deleteJourney('{{ j.id }}','{{ j.name }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
                 <button onclick="openPhaseModal('{{ j.id }}')" class="btn btn-primary btn-sm">+ Fase</button>
             </div>
@@ -137,6 +138,7 @@ _data['{{ a.id }}']={name:'{{ a.name|replace("'","\\'") }}',role:'{{ a.role|repl
 
 // ── Journey ──
 function deleteJourney(id,name){if(!confirm('¿Eliminar journey \"'+name+'\" y todas sus fases y agentes?'))return;fetch('/api/v1/journeys/'+id,{method:'DELETE'}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()})}
+function cloneJourney(id){fetch('/api/v1/journeys/'+id+'/clone',{method:'POST'}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()})}
 function reorderPhase(pid,dir){fetch('/api/v1/journeys/phases/'+pid+'/reorder',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({direction:dir})}).then(r=>r.json()).then(d=>{if(d.ok)location.reload()})}
 function openJourneyModal(){document.getElementById('j-id').value='';document.getElementById('j-modal-title').textContent='Nuevo Journey';document.getElementById('j-submit').textContent='Crear';document.getElementById('j-name').value='';document.getElementById('j-desc').value='';document.getElementById('j-obj').value='';document.getElementById('j-status').value='draft';document.getElementById('journey-modal').classList.remove('hidden')}
 function editJourney(id,name,desc,obj,status){document.getElementById('j-id').value=id;document.getElementById('j-modal-title').textContent='Editar Journey';document.getElementById('j-submit').textContent='Guardar';document.getElementById('j-name').value=name;document.getElementById('j-desc').value=desc.replace(/\\n/g,'\n');document.getElementById('j-obj').value=obj.replace(/\\n/g,'\n');document.getElementById('j-status').value=status;document.getElementById('journey-modal').classList.remove('hidden')}
