@@ -20,6 +20,12 @@ All pipeline nodes MUST emit timing metrics. Failures MUST be logged with trace_
 ### VI. Configuration over Hardcoding
 Coach behaviors MUST be configurable via YAML profiles or env vars. No hardcoded coach-specific logic in engine code.
 
+### VII. Real-Time Voice First
+Voice interactions MUST be first-class citizens, not an afterthought. The LiveKit-based voice pipeline must match the quality and capabilities of the text-based pipeline.
+
+### VIII. Swarm-Oriented Architecture
+Multi-agent conversations SHOULD use LangGraph Swarm patterns for specialized agent routing. New agent types SHOULD be added as swarm members, not pipeline extensions.
+
 ## Deployment Constraints
 
 - `docker-compose.prod.yml` is the SINGLE source of truth for deployment
