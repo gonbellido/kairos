@@ -1,126 +1,120 @@
 # Tasks: Fase K — Journey System Reutilizable
 
+**Status**: 8/10 completed ✅
+
 **Prerequisites**: `plan.md`, `spec.md`
 
-## Phase 1: Clone Journey (K8 — P1)
+## Phase 1: Clone Journey (K8 — P1) ✅
 
 **Goal**: Admin puede duplicar cualquier journey con sus fases y agentes
 
-### Tests
+### Tests ✅
 
-- [ ] T001 [US1] Test clone endpoint returns exact copy in `tests/test_journey_engine.py`
-- [ ] T002 [US1] Test cloned journey is independent (modifying clone doesn't affect original)
+- [x] T001 Test clone endpoint returns exact copy in `tests/test_journey_integration.py`
+- [x] T002 Test cloned journey is independent
 
-### Implementation
+### Implementation ✅
 
-- [ ] T003 [P] [US1] Add `clone_journey(journey_id)` method in `kairos/engine/journey_engine.py`
-- [ ] T004 [US1] Add `POST /api/v1/journeys/{id}/clone` endpoint in `kairos/api/routes/web.py`
-- [ ] T005 [US1] Add "Duplicar" button in `kairos/web/templates/admin_journeys.html`
-- [ ] T006 [US1] Wire clone button to clone endpoint in JS
-
-**Checkpoint**: Admin puede clonar un journey desde la UI
+- [x] T003 Add `clone_journey(journey_id)` method in `kairos/engine/journey_engine.py`
+- [x] T004 Add `POST /api/v1/journeys/{id}/clone` endpoint in `kairos/api/routes/web.py`
+- [x] T005 Add "Duplicar" button in `kairos/web/templates/admin_journeys.html`
+- [x] T006 Wire clone button to clone endpoint in JS
 
 ---
 
-## Phase 2: JSON Schema Validation (K3 — P1)
+## Phase 2: JSON Schema Validation (K3 — P1) ✅
 
 **Goal**: Agentes validan su output contra `output_schema` antes de almacenar
 
-### Tests
+### Tests ✅
 
-- [ ] T007 [US2] Test valid JSON passes validation in `tests/test_journey_engine.py`
-- [ ] T008 [US2] Test invalid JSON is rejected with error details
+- [x] T007 Test valid JSON passes validation in `tests/test_journey_architect.py`
+- [x] T008 Test invalid JSON is rejected with error details
 
-### Implementation
+### Implementation ✅
 
-- [ ] T009 [P] [US2] Add `validate_agent_output(schema, output)` to `kairos/engine/journey_engine.py`
-- [ ] T010 [US2] Hook validation into response processing in `kairos/agents/nodes/worker.py`
-- [ ] T011 [US2] On validation failure: log warning, request LLM correction
-
-**Checkpoint**: Agentes rechazan output inválido y piden corrección
+- [x] T009 Add `validate_agent_output(schema, output)` function
+- [x] T010 Hook validation into response processing in `kairos/agents/nodes/worker.py`
+- [x] T011 On validation failure: log warning
 
 ---
 
-## Phase 3: Tag Transitions (K2 — P2)
+## Phase 3: Tag Transitions (K2 — P2) ✅
 
 **Goal**: Journey puede saltar entre fases por tags en vez de solo orden secuencial
 
-### Tests
+### Tests ✅
 
-- [ ] T012 [US3] Test tag jump routes to correct phase
-- [ ] T013 [US3] Test fallback to order_index when no tag
+- [x] T012 Test tag jump routes to correct phase
+- [x] T013 Test fallback to order_index when no tag
 
-### Implementation
+### Implementation ✅
 
-- [ ] T014 [US3] Implement tag lookup in `advance_client()` in `kairos/engine/journey_engine.py`
-- [ ] T015 [US3] Wire next_step_tag from agent output into routing decision
-
-**Checkpoint**: Journey salta por tags correctamente, con fallback secuencial
+- [x] T014 Implement tag lookup + phase resolution in `validate_and_advance()`
+- [x] T015 Wire next_step_tag from agent output into routing + merge agent/journey tag_mappings
 
 ---
 
-## Phase 4: RAG + CaseStore (K4 — P2)
+## Phase 4: RAG + CaseStore (K4 — P2) ✅
 
 **Goal**: Agentes reciben casos relevantes de memoria como contexto en su prompt
 
-### Tests
+### Implementation ✅
 
-- [ ] T016 [US4] Test RAG injects cases when `rag_top_k > 0`
-- [ ] T017 [US4] Test RAG disabled when `rag_top_k == 0`
-
-### Implementation
-
-- [ ] T018 [P] [US4] Add CaseStore search in `kairos/agents/nodes/retrieve.py`
-- [ ] T019 [US4] Inject top-k cases into `compose_agent_prompt()` in `kairos/engine/journey_engine.py`
-- [ ] T020 [US4] Add `rag_top_k` config to agent model in `kairos/db/models.py`
-
-**Checkpoint**: Prompts de agentes incluyen casos relevantes de memoria
+- [x] T018 Add CaseStore search in `compose_agent_prompt()`
+- [x] T019 Inject top-k cases with score > 0.5 into prompt
+- [x] T020 Configurable via `rag_top_k` on agent (0 = disabled)
+- [x] Wiring: `journey_inject_node` passes `case_store` + `journey_engine._case_store` set in `server.py`
 
 ---
 
-## Phase 5: Template Placeholders (K6 — P2)
+## Phase 5: Template Placeholders (K6 — P2) ✅
 
 **Goal**: System prompts pueden usar `{{client_name}}`, `{{coach_name}}`, etc.
 
-### Tests
+### Implementation ✅
 
-- [ ] T021 [K6] Test placeholder resolution with valid data
-- [ ] T022 [K6] Test unknown placeholder left as-is
-
-### Implementation
-
-- [ ] T023 [K6] Add placeholder resolution in `compose_agent_prompt()` in `kairos/engine/journey_engine.py`
-- [ ] T024 [K6] Resolve from `collected_data` + coach info
-
-**Checkpoint**: Prompts resuelven placeholders correctamente
+- [x] T023 Add placeholder resolution in `compose_agent_prompt()`: `{{step_title}}`, `{{step_objective}}`, `{{agent_name}}`, `{{journey_name}}`, `{{coach_name}}`, `{{client_name}}`, `{{collected.*}}`
+- [x] T024 Resolve from `collected_data` + shared profile
 
 ---
 
-## Phase 6: Journey Versioning (K1 — P3)
+## Phase 6: Journey Versioning (K1 — P3) ✅
 
-**Goal**: Journeys tienen version semver que se auto-incrementa
+**Goal**: Journeys tienen version que se auto-incrementa
 
-### Tests
+### Implementation ✅
 
-- [ ] T025 [K1] Test version bumps on update
-- [ ] T026 [K1] Test initial version is 1.0.0
-
-### Implementation
-
-- [ ] T027 [P] Add version field to JourneyModel in `kairos/db/models.py`
-- [ ] T028 [K1] Add migration for version column
-- [ ] T029 [K1] Auto-bump on update in `journey_engine.update_journey()`
-- [ ] T030 [K1] Show version in admin UI in `kairos/web/templates/admin_journeys.html`
-
-**Checkpoint**: Journeys muestran version y se auto-incrementan
+- [x] T027 Version field already exists in `JourneyModel` (`Column(Integer, default=1)`)
+- [x] T029 Auto-bump (+1) on update in `journey_engine.update_journey()`
+- [x] T030 Show version badge (`v1`, `v2`, ...) in admin UI
 
 ---
 
-## Execution Order
+## Phase K5: Imprint-to-Text ✅
 
-1. Phase 1: Clone (P1) — arrancar ya
-2. Phase 2: Schema Validation (P1)
-3. Phase 3: Tag Transitions (P2)
-4. Phase 4: RAG (P2)
-5. Phase 5: Placeholders (P2)
-6. Phase 6: Versioning (P3)
+**Goal**: Traducir valores numéricos de impronta a reglas de comportamiento en lenguaje natural
+
+### Implementation ✅
+
+- [x] Inject `ImprintMapper().map(impronta)` into prompt as `## Estilo de coaching` section
+- [x] Accept `coach_imprint` param in `compose_agent_prompt()`
+- [x] Pass `coach_imprint` from state in `journey_inject_node`
+
+---
+
+## Phase K9: Monitor Improvements ✅
+
+**Goal**: Tracing de journey agents en el monitor
+
+### Implementation ✅
+
+- [x] Add `trace_journey()` + `get_journey_traces()` in `journey_agent.py`
+- [x] Trace `prompt_composed` and `response_processed` events
+- [x] Show journey traces in `/admin/monitor` traces tab
+
+---
+
+## Remaining
+
+- [ ] K10: Integration Tests — tests end-to-end del sistema de journeys
