@@ -26,8 +26,9 @@ class JourneyArchitect:
 
         user_context = f"METODOLOGÍA DEL COACH:\n{methodology}\n\nPROMPT DEL USUARIO:\n{prompt}"
         if existing_journey_id:
-            # TODO: Load existing journey spec to modify it
-            pass
+            existing = await self.journey_engine.get_journey(existing_journey_id)
+            if existing:
+                user_context += f"\n\nJOURNEY EXISTENTE A MODIFICAR:\n{json.dumps(existing, indent=2)}"
 
         messages = [
             SystemMessage(content=full_system_prompt),
@@ -55,19 +56,25 @@ class JourneyArchitect:
                 if validation["valid"]:
                     return spec
 
-                # If not valid, ask for correction
+                logger.warning("Validation errors (attempt %d): %s", attempt + 1, validation["errors"])
                 messages.append(HumanMessage(content=f"La especificación generada tiene errores de validación:\n{json.dumps(validation['errors'], indent=2)}\nPor favor, corrígela y devuelve el JSON completo de nuevo."))
                 attempt += 1
                 last_error = validation["errors"]
+            except json.JSONDecodeError as e:
+                logger.error("JSON parse error (attempt %d): %s", attempt + 1, e)
+                logger.debug("Raw LLM response: %s", content if 'content' in locals() else 'N/A')
+                messages.append(HumanMessage(content=f"Hubo un error de formato JSON: {str(e)}. Asegúrate de devolver un JSON válido según el esquema."))
+                attempt += 1
+                last_error = str(e)
             except Exception as e:
-                logger.error(f"Error in build_from_prompt attempt {attempt}: {e}")
+                logger.error("LLM invocation error (attempt %d): %s", attempt + 1, e)
                 messages.append(HumanMessage(content=f"Hubo un error procesando tu respuesta anterior: {str(e)}. Asegúrate de devolver un JSON válido según el esquema."))
                 attempt += 1
                 last_error = str(e)
 
         return {
-            "journey": spec.get("journey", {}) if 'spec' in locals() else {},
-            "gaps_detected": spec.get("gaps_detected", []) if 'spec' in locals() else [],
+            "journey": {},
+            "gaps_detected": [],
             "warnings": [f"Máximo de intentos de corrección alcanzado. Errores pendientes: {last_error}"]
         }
 

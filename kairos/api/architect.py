@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
@@ -5,11 +6,16 @@ from kairos.engine.journey_architect.architect import JourneyArchitect
 from kairos.engine.journey_architect.methodology_store import CoachMethodologyStore
 from kairos.config.llm_factory import create_llm
 
+logger = logging.getLogger(__name__)
 router = APIRouter(tags=["architect"])
 
 
-def _get_coach(req: Request):
-    return getattr(req.state, "coach", None)
+async def _get_coach(req: Request):
+    token = req.cookies.get("kairos_token")
+    if not token:
+        return None
+    coach_db = req.app.state.coach_db
+    return await coach_db.get_session(token)
 
 
 def _get_architect(req: Request) -> JourneyArchitect:
@@ -27,7 +33,7 @@ def _get_architect(req: Request) -> JourneyArchitect:
 
 @router.post("/api/v1/architect/build")
 async def architect_build(req: Request):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     body = await req.json()
@@ -41,12 +47,31 @@ async def architect_build(req: Request):
         prompt=prompt,
         existing_journey_id=existing_journey_id,
     )
-    return {"ok": True, **result}
+    if not result.get("journey") or not result["journey"].get("name"):
+        return JSONResponse({
+            "ok": False,
+            "detail": "No se pudo generar el journey",
+            "warnings": result.get("warnings", []),
+            "gaps_detected": result.get("gaps_detected", []),
+        }, status_code=422)
+    try:
+        journey_id = await arch.create_journey_from_spec(
+            coach_id=coach["id"],
+            spec=result["journey"],
+        )
+        return {"ok": True, "journey_id": journey_id, "journey": result["journey"],
+                "gaps_detected": result.get("gaps_detected", []), "warnings": result.get("warnings", [])}
+    except ValueError as e:
+        return JSONResponse({
+            "ok": False,
+            "detail": str(e),
+            "journey": result.get("journey", {}),
+        }, status_code=422)
 
 
 @router.post("/api/v1/architect/create")
 async def architect_create(req: Request):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     body = await req.json()
@@ -63,7 +88,7 @@ async def architect_create(req: Request):
 
 @router.post("/api/v1/architect/explain/{journey_id}")
 async def architect_explain(req: Request, journey_id: str):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     arch = _get_architect(req)
@@ -73,7 +98,7 @@ async def architect_explain(req: Request, journey_id: str):
 
 @router.post("/api/v1/architect/suggest/{journey_id}")
 async def architect_suggest(req: Request, journey_id: str):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     arch = _get_architect(req)
@@ -83,7 +108,7 @@ async def architect_suggest(req: Request, journey_id: str):
 
 @router.get("/api/v1/architect/methodology")
 async def get_methodology(req: Request):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     _get_architect(req)
@@ -94,7 +119,7 @@ async def get_methodology(req: Request):
 
 @router.post("/api/v1/architect/methodology")
 async def add_methodology(req: Request):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     body = await req.json()
@@ -111,7 +136,7 @@ async def add_methodology(req: Request):
 
 @router.delete("/api/v1/architect/methodology/{doc_id}")
 async def delete_methodology(req: Request, doc_id: str):
-    coach = _get_coach(req)
+    coach = await _get_coach(req)
     if not coach:
         return JSONResponse({"ok": False, "detail": "unauthorized"}, status_code=403)
     _get_architect(req)
