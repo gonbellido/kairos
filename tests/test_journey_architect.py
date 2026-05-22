@@ -132,3 +132,68 @@ async def test_validate_agent_output_empty_schema():
     from kairos.engine.journey_engine import validate_agent_output
     result = validate_agent_output({}, {"structured": {"name": "Juan"}})
     assert result["valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_validate_journey_spec_tag_mappings():
+    from kairos.engine.journey_architect.architect import JourneyArchitect
+    arch = JourneyArchitect(None, None, None)
+    spec = {
+        "name": "Tag Test",
+        "phases": [
+            {
+                "name": "P1", "order_index": 1,
+                "agents": [{"name": "A1", "system_prompt": "SP",
+                            "tag_mappings": {"to_p2": 2, "to_p3": 3}}]
+            },
+            {
+                "name": "P2", "order_index": 2,
+                "agents": [{"name": "A2", "system_prompt": "SP"}]
+            },
+            {
+                "name": "P3", "order_index": 3,
+                "agents": [{"name": "A3", "system_prompt": "SP",
+                            "tag_mappings": {"complete": 99}}]
+            }
+        ]
+    }
+    result = await arch.validate_journey_spec(spec)
+    assert result["valid"] is True
+    assert len(result["errors"]) == 0
+
+
+@pytest.mark.asyncio
+async def test_validate_journey_spec_bad_tag():
+    from kairos.engine.journey_architect.architect import JourneyArchitect
+    arch = JourneyArchitect(None, None, None)
+    spec = {
+        "name": "Bad Tag",
+        "phases": [
+            {
+                "name": "P1", "order_index": 1,
+                "agents": [{"name": "A1", "system_prompt": "SP",
+                            "tag_mappings": {"to_nowhere": 99}}]
+            }
+        ]
+    }
+    result = await arch.validate_journey_spec(spec)
+    assert result["valid"] is True  # 99 is valid (journey_complete)
+
+
+@pytest.mark.asyncio
+async def test_validate_journey_spec_tag_inexistent_order():
+    from kairos.engine.journey_architect.architect import JourneyArchitect
+    arch = JourneyArchitect(None, None, None)
+    spec = {
+        "name": "Bad Tag",
+        "phases": [
+            {
+                "name": "P1", "order_index": 1,
+                "agents": [{"name": "A1", "system_prompt": "SP",
+                            "tag_mappings": {"to_p5": 5}}]
+            }
+        ]
+    }
+    result = await arch.validate_journey_spec(spec)
+    assert result["valid"] is False
+    assert any("5" in e for e in result["errors"])

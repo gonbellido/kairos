@@ -703,17 +703,43 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
             allowed = agent_data.get("allowed_tags", [])
             journey_data = await self.get_client_journey(client_id)
             if journey_data:
-                tag_map = (journey_data.get("journey", {}) or {}).get("tag_mappings", {})
+                journey = journey_data.get("journey", {}) or {}
+                phases = journey.get("phases", [])
+                # Merge agent-level and journey-level tag_mappings
+                agent_tag_map = agent_data.get("tag_mappings", {}) or {}
+                journey_tag_map = journey.get("tag_mappings", {}) or {}
+                tag_map = {**journey_tag_map, **agent_tag_map}
                 for tag in result["suggested_tags"]:
                     if tag in allowed:
-                        if tag in tag_map:
-                            await self._jump_to_step(client_id, tag_map[tag])
-                        else:
-                            await self.advance_client(client_id)
-                        result["advanced"] = True
+                        target = tag_map.get(tag)
+                        if target is not None and target != 99:
+                            # Resolve target (order_index → phase_id, or keep if already phase_id)
+                            target_phase_id = target if isinstance(target, str) else None
+                            if target_phase_id is None:
+                                target_phase = next(
+                                    (p for p in phases if p.get("order_index") == target),
+                                    None
+                                )
+                                target_phase_id = target_phase["id"] if target_phase else None
+                            if target_phase_id:
+                                await self._jump_to_step(client_id, target_phase_id)
+                                result["advanced"] = True
+                        elif target == 99:
+                            # journey_complete
+                            async with self._sf() as s:
+                                cj = (await s.execute(
+                                    select(ClientJourneyModel).where(ClientJourneyModel.client_id == client_id)
+                                )).scalars().first()
+                                if cj:
+                                    cj.status = "completed_journey"
+                                    cj.progress_pct = 100
+                                    cj.completed_at = _utcnow()
+                                    await s.commit()
+                            result["advanced"] = True
                         await self._log_journey_event(client_id, journey_data.get("coach_id", ""),
                             journey_data.get("journey_id", ""), "phase_advanced",
-                            {"agent": agent_data.get("name", "?"), "tag": tag, "new_phase": tag_map.get(tag, "next")})
+                            {"agent": agent_data.get("name", "?"), "tag": tag,
+                             "target": target, "target_type": "tag_jump" if target != 99 else "complete"})
                         break
 
         if result.get("phase_completed") and not result["advanced"]:
