@@ -628,6 +628,18 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
         prompt = prompt.replace("{{journey_name}}", journey.get("name", ""))
         prompt = prompt.replace("{{coach_name}}", coach_name)
 
+        # K5: Imprint-to-Text — inject coach behavioral rules
+        if coach_imprint:
+            from kairos.core.impronta import Impronta
+            from kairos.engine.imprint_mapper import ImprintMapper
+            try:
+                impronta = Impronta(**{k: float(v) for k, v in coach_imprint.items() if isinstance(v, (int, float))})
+                rules = ImprintMapper().map(impronta)
+                if rules:
+                    prompt += "\n\n## Estilo de coaching\n" + "\n".join(f"- {r}" for r in rules)
+            except Exception:
+                pass
+
         # Resolve {{client_name}} from collected_data or shared profile
         resolved_client_name = ""
         collected_data_placeholder = cj_data.get("collected_data", {}) or {}

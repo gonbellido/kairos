@@ -26,11 +26,13 @@ async def journey_inject_node(state: AgentState, journey_engine) -> dict[str, An
         case_store = getattr(journey_engine, "_case_store", None)
 
         coach_name = state.get("context", {}).get("coach_name", "")
+        coach_imprint = state.get("impronta")
 
         system_prompt = await journey_engine.compose_agent_prompt(
             client_id=client_id,
             message=message,
             coach_name=coach_name,
+            coach_imprint=coach_imprint,
             memory_hits=memory_hits,
             case_store=case_store,
         )
