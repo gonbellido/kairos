@@ -570,30 +570,6 @@ class JourneyEngine:
                 return self._client_journey_to_dict(cj)
         return None
 
-# ── K3: JSON Schema Validation ──
-
-def validate_agent_output(schema: dict, output: dict) -> dict:
-    errors = []
-    if not schema:
-        return {"valid": True, "errors": []}
-    required = schema.get("structured", {}).get("required_fields", {})
-    if required:
-        structured = output.get("structured", {})
-        for field, expected_type in required.items():
-            if field not in structured:
-                errors.append(f"Campo requerido '{field}' ausente")
-                continue
-            val = structured[field]
-            type_map = {"string": str, "number": (int, float), "boolean": bool, "list": list, "dict": dict}
-            expected = type_map.get(expected_type)
-            if expected and not isinstance(val, expected):
-                errors.append(f"Campo '{field}': esperado {expected_type}, recibido {type(val).__name__}")
-    output_schema = schema.get("output_schema", {})
-    if output_schema:
-        for field in output_schema:
-            if field not in output:
-                errors.append(f"Campo '{field}' del output_schema ausente en respuesta")
-    return {"valid": len(errors) == 0, "errors": errors}
 
     # ── Prompt composition ──
 
@@ -999,3 +975,29 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
                 "tasks_data": sp.tasks_data or [], "checkpoints_data": sp.checkpoints_data or [],
                 "conversation_summary": sp.conversation_summary or "",
                 "risk_flags_data": sp.risk_flags_data or []}
+
+
+# ── K3: JSON Schema Validation ──
+
+def validate_agent_output(schema: dict, output: dict) -> dict:
+    errors = []
+    if not schema:
+        return {"valid": True, "errors": []}
+    required = schema.get("structured", {}).get("required_fields", {})
+    if required:
+        structured = output.get("structured", {})
+        for field, expected_type in required.items():
+            if field not in structured:
+                errors.append(f"Campo requerido '{field}' ausente")
+                continue
+            val = structured[field]
+            type_map = {"string": str, "number": (int, float), "boolean": bool, "list": list, "dict": dict}
+            expected = type_map.get(expected_type)
+            if expected and not isinstance(val, expected):
+                errors.append(f"Campo '{field}': esperado {expected_type}, recibido {type(val).__name__}")
+    output_schema = schema.get("output_schema", {})
+    if output_schema:
+        for field in output_schema:
+            if field not in output:
+                errors.append(f"Campo '{field}' del output_schema ausente en respuesta")
+    return {"valid": len(errors) == 0, "errors": errors}
