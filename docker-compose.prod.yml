@@ -58,6 +58,38 @@ services:
         reservations:
           memory: 512M
 
+  # ── Voice Agent (LiveKit) ──
+  voice:
+    build: .
+    restart: unless-stopped
+    command: python -m kairos.engine.voice_agent start
+    expose:
+      - "8001"
+    env_file:
+      - .env.production
+    environment:
+      KAIROS_API_URL: http://app:8000
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      CARTESIA_API_KEY: ${CARTESIA_API_KEY}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL: ${LLM_MODEL}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+    volumes:
+      - ./kairos:/app/kairos
+      - ./profiles:/app/profiles
+    networks: [kairos_net]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
+    depends_on:
+      - app
+
   # ── Qdrant Vector DB ──
   qdrant:
     image: qdrant/qdrant:v1.13.6
