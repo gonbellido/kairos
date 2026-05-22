@@ -78,3 +78,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-
 | postgres | 5432 | pg_isready |
 | minio | 9000/9001 | curl http://localhost:9000/minio/health/live |
 | nginx | 80/443 | — |
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
