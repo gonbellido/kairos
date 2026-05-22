@@ -46,6 +46,9 @@ services:
       postgres:
         condition: service_healthy
     volumes:
+      - ./kairos:/app/kairos
+      - ./profiles:/app/profiles
+      - ./obsidian_templates:/app/obsidian_templates
       - app_uploads:/tmp/kairos_uploads
     networks: [kairos_net]
     deploy:

@@ -12,13 +12,40 @@
   ```
 - NO usar `docker compose` sin `-f` porque mergea `docker-compose.yml` (dev) y `docker-compose.prod.yml`, causando conflictos de healthchecks y configs de desarrollo.
 
-## Volumen mounts críticos (docker-compose.yml, dev)
-`docker-compose.yml` (dev) tiene volume mounts que NO están en `docker-compose.prod.yml`:
+## Volumen mounts (docker-compose.prod.yml)
+`docker-compose.prod.yml` ahora tiene volume mounts para desarrollo activo:
 - `./kairos:/app/kairos` — código fuente montado en vivo
 - `./profiles:/app/profiles` — perfiles YAML
 - `./obsidian_templates:/app/obsidian_templates`
 
-Esto significa que rsync de archivos funciona sin rebuild.
+**Esto significa que rsync de archivos funciona sin rebuild ni restart.** Solo hay que hacer rebuild si cambian dependencias (pyproject.toml), Dockerfile, o archivos estáticos que se copian en el build.
+
+## Rsync changes to server
+Los paths de rsync son **relativos al directorio raíz del proyecto**:
+
+```bash
+# Archivos individuales — usar path completo desde raíz
+rsync -avz -e "ssh -i ~/.ssh/id_rsa" kairos/api/middleware.py root@95.217.217.222:/opt/kairos/kairos/api/middleware.py
+rsync -avz -e "ssh -i ~/.ssh/id_rsa" kairos/web/templates/admin_journeys.html root@95.217.217.222:/opt/kairos/kairos/web/templates/admin_journeys.html
+
+# Múltiples archivos del mismo directorio
+rsync -avz -e "ssh -i ~/.ssh/id_rsa" \
+  kairos/api/architect.py \
+  kairos/engine/journey_architect/architect.py \
+  root@95.217.217.222:/opt/kairos/kairos/
+
+# Directorio completo
+rsync -avz -e "ssh -i ~/.ssh/id_rsa" kairos/web/templates/ root@95.217.217.222:/opt/kairos/kairos/web/templates/
+```
+
+## Full deploy (when rebuild needed)
+```bash
+git push
+ssh -i ~/.ssh/id_rsa root@95.217.217.222
+cd /opt/kairos && git pull   # only if remote is SSH-based
+docker compose -f docker-compose.prod.yml --env-file .env.production build app --no-cache
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-deps app
+```
 
 ## Archivos modificados para Journey Architect fix
 - `kairos/api/architect.py` — `_get_coach` cambiado a cookie-based auth
