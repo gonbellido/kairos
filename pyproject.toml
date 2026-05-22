@@ -43,7 +43,8 @@ dev = [
 ollama = ["langchain-ollama>=0.2.0"]
 audio = ["openai-whisper>=20231117"]
 voice = ["livekit-agents>=1.5", "livekit-plugins-cartesia", "livekit-plugins-silero",
-         "livekit-plugins-deepgram", "livekit-plugins-openai", "livekit-plugins-ai-coustics"]
+         "livekit-plugins-deepgram", "livekit-plugins-openai", "livekit-plugins-ai-coustics",
+         "livekit-plugins-turn-detector"]
 all = ["kairos[dev]", "kairos[ollama]", "kairos[audio]", "kairos[voice]"]
 
 [tool.setuptools.packages.find]
