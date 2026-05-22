@@ -353,6 +353,8 @@
     <!-- Input area (text mode) -->
     <div class="input-area">
         <button class="mic-btn" id="mic-quick" onclick="openVoiceMode()" title="Hablar">🎤</button>
+        <button class="mic-btn" id="lk-call-btn" onclick="toggleLiveKitCall()" title="Llamada de voz IA"
+                style="font-size:15px;background:var(--teal-muted);border-color:var(--teal);color:var(--teal);">📞</button>
         <textarea
             id="msg-input"
             class="text-input"
@@ -827,6 +829,78 @@ function onSpeakEnd() {
 
 // Load voices on first interaction (browsers require this)
 window.speechSynthesis?.addEventListener('voiceschanged', () => {});
+
+// ── LiveKit Voice Call ──
+let lkRoom = null;
+let lkConnected = false;
+
+async function toggleLiveKitCall() {
+    const btn = document.getElementById('lk-call-btn');
+    if (lkConnected) {
+        await disconnectLiveKit();
+        btn.textContent = '📞';
+        btn.style.background = 'var(--teal-muted)';
+        return;
+    }
+    btn.textContent = '⏳';
+    btn.disabled = true;
+    try {
+        const r = await fetch('/api/v1/voice/token');
+        const d = await r.json();
+        if (!d.ok) {
+            alert('Voz no disponible: ' + (d.error || 'error'));
+            btn.textContent = '📞';
+            btn.disabled = false;
+            return;
+        }
+        await connectLiveKit(d.url, d.token, d.room);
+        btn.textContent = '🔴';
+        btn.style.background = 'rgba(239,68,68,0.2)';
+        btn.style.borderColor = '#ef4444';
+        btn.style.color = '#ef4444';
+    } catch (e) {
+        alert('Error al conectar: ' + e.message);
+        btn.textContent = '📞';
+    }
+    btn.disabled = false;
+}
+
+async function connectLiveKit(url, token, roomName) {
+    const { Room, AudioTrack, LocalAudioTrack, RemoteAudioTrack } = await import('https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.es.mjs');
+    const room = new Room({
+        adaptiveStream: true,
+        audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+
+    room.on('trackSubscribed', (track, publication, participant) => {
+        if (track.kind === 'audio') {
+            const audioEl = track.attach();
+            audioEl.play();
+            addMessage('🎧', 'Llamada de voz activa con el agente', 'agent');
+        }
+    });
+
+    room.on('disconnected', () => {
+        lkConnected = false;
+        document.getElementById('lk-call-btn').textContent = '📞';
+        document.getElementById('lk-call-btn').style.background = 'var(--teal-muted)';
+        addMessage('ℹ️', 'Llamada finalizada', 'agent');
+    });
+
+    await room.connect(url, token);
+    lkRoom = room;
+    lkConnected = true;
+    addMessage('📞', 'Conectado a llamada de voz con IA', 'agent');
+}
+
+async function disconnectLiveKit() {
+    if (lkRoom) {
+        lkRoom.disconnect();
+        lkRoom = null;
+    }
+    lkConnected = false;
+}
 </script>
+<script src="https://cdn.jsdelivr.net/npm/livekit-client@1/dist/livekit-client.umd.min.js"></script>
 </body>
 </html>
