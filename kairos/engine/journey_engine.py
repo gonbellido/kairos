@@ -227,9 +227,13 @@ class JourneyEngine:
             j = await s.get(JourneyModel, journey_id)
             if not j:
                 return None
+            bump = False
             for k, v in fields.items():
-                if hasattr(j, k) and v is not None:
+                if k != "version" and hasattr(j, k) and v is not None:
                     setattr(j, k, v)
+                    bump = True
+            if bump:
+                j.version = (getattr(j, "version", 1) or 1) + 1
             await s.commit()
             return self._journey_to_dict(j)
 
@@ -305,7 +309,7 @@ class JourneyEngine:
                 id=new_id, coach_id=orig_model.coach_id,
                 name=f"Copia de {orig_model.name}",
                 description=orig_model.description, objective=orig_model.objective,
-                profile_type=orig_model.profile_type, status="draft",
+                profile_type=orig_model.profile_type, status="draft", version=1,
                 tag_mappings=orig_model.tag_mappings,
             )
             s.add(new_j)

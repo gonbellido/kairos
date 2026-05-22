@@ -31,6 +31,7 @@
             <div>
                 <span class="badge {% if j.status == 'active' %}badge-teal{% else %}badge-neutral{% endif %}" style="margin-right: 6px;">{{ j.status }}</span>
                 <span class="badge badge-indigo" style="margin-right: 6px;">{{ j.profile_type }}</span>
+                <span class="badge badge-neutral" style="margin-right: 6px;">v{{ j.get('version', 1) }}</span>
                 <span style="font-weight: 600; font-size: 15px;">{{ j.name }}</span>
             </div>
             <div class="flex items-center gap-2">
