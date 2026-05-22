@@ -58,6 +58,19 @@ services:
         reservations:
           memory: 512M
 
+  # ── LiveKit Server (self-hosted) ──
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml --node-ip=livekit
+    expose:
+      - "7880"
+      - "7881"
+      - "7882"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    networks: [kairos_net]
+
   # ── Voice Agent (LiveKit) ──
   voice:
     build: .
@@ -69,7 +82,7 @@ services:
       - .env.production
     environment:
       KAIROS_API_URL: http://app:8000
-      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_URL: ws://livekit:7880
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
@@ -81,6 +94,8 @@ services:
       - ./kairos:/app/kairos
       - ./profiles:/app/profiles
     networks: [kairos_net]
+    depends_on:
+      - livekit
     deploy:
       resources:
         limits:
