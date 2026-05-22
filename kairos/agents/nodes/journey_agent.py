@@ -45,6 +45,15 @@ async def journey_inject_node(state: AgentState, journey_engine) -> dict[str, An
 
         coach_name = state.get("context", {}).get("coach_name", "")
         coach_imprint = state.get("impronta")
+        state_classification = state.get("state_classification", {}) or {}
+        if state_classification:
+            from kairos.engine.emotional_tts import sentiment_from_state, get_emotional_prompt_extension
+            sentiment = sentiment_from_state(state_classification)
+            ext = get_emotional_prompt_extension(sentiment)
+            if ext:
+                existing = state.get("journey_system_prompt", "")
+                if existing and ext not in existing:
+                    state["journey_system_prompt"] = existing + ext
 
         system_prompt = await journey_engine.compose_agent_prompt(
             client_id=client_id,
