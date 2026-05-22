@@ -72,9 +72,24 @@ async function loadData() {
         d.active_client_journeys.map(j => '<tr><td class="text-mono" style="font-size:12px">'+j.client_id.slice(0,12)+'</td><td>'+j.journey_id.slice(0,12)+'</td><td>'+j.current_phase_id.slice(0,8)+'</td><td><div class="progress-mini" style="width:60px"><div class="progress-mini-fill high" style="width:'+j.progress_pct+'%"></div></div> '+j.progress_pct+'%</td><td><span class="badge '+(j.status==="in_progress"?"badge-teal":"badge-neutral")+'">'+j.status+'</span></td><td class="text-sm">'+j.last_interaction.slice(11,19)+'</td></tr>').join('') + '</tbody></table>'
         : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin journeys activos</div>';
 
-    // Traces
-    document.getElementById('tab-traces').innerHTML = d.traces.length ?
-        '<div class="flex flex-col gap-3">' + d.traces.map(t => '<div class="card" style="padding:var(--space-3)"><div class="text-sm" style="color:var(--text-muted)">'+t.ts.slice(11,19)+'</div><pre style="font-size:11px;max-height:200px;overflow:auto">'+JSON.stringify(t,null,2)+'</pre></div>').join('') + '</div>'
+    // Traces — combine system traces + journey traces
+    const allTraces = [
+        ...(d.journey_traces || []).map(t => ({...t, _source: 'journey'})),
+        ...d.traces.map(t => ({...t, _source: 'system'})),
+    ].sort((a,b) => (a.ts||'').localeCompare(b.ts||'') || 0).slice(-30);
+    document.getElementById('tab-traces').innerHTML = allTraces.length ?
+        '<div class="flex flex-col gap-2">' + allTraces.map(t => {
+            const bg = t._source === 'journey' ? 'var(--accent-teal)' : 'var(--accent-indigo)';
+            const label = t._source === 'journey' ? '🧭' : '🔧';
+            let detail = '';
+            if (t.event === 'prompt_composed') detail = 'Prompt: <strong>'+t.data.prompt_len+'</strong> chars';
+            else if (t.event === 'response_processed') detail = 'Agent: <strong>'+t.data.agent+'</strong> · avanzó='+t.data.advanced+' · tags='+JSON.stringify(t.data.tags);
+            else if (t.event) detail = t.event + ': ' + JSON.stringify(t.data || {}).slice(0,100);
+            else detail = JSON.stringify(t.data || {}).slice(0,100);
+            return '<div class="card" style="padding:var(--space-2);border-left:3px solid '+bg+'">' +
+                '<div class="text-xs" style="color:var(--text-muted)">'+label+' '+(t.ts||'').slice(11,19)+' '+(t.client_id||'').slice(0,10)+'</div>' +
+                '<div class="text-sm" style="font-family:var(--font-mono);font-size:11px">'+detail+'</div></div>';
+        }).join('') + '</div>'
         : '<div class="text-sm" style="text-align:center;padding:var(--space-6)">Sin trazas</div>';
 
     // Events

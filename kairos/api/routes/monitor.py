@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from kairos.engine.activity import get_activity
+from kairos.agents.nodes.journey_agent import get_journey_traces
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/monitor", tags=["monitor"])
@@ -90,4 +91,5 @@ async def monitor_data(req: Request):
         "active_client_journeys": active_client_journeys,
         "events": events,
         "bots": len(getattr(req.app.state, "telegram_bots", {})),
+        "journey_traces": get_journey_traces(30),
     }

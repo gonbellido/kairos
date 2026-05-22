@@ -1,9 +1,27 @@
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 from kairos.core.state import AgentState
 
 logger = logging.getLogger(__name__)
+_utcnow = lambda: datetime.now(tz=timezone.utc)
+
+# K9: Journey trace store
+_journey_traces: list[dict] = []
+
+def trace_journey(client_id: str, event: str, data: dict):
+    _journey_traces.append({
+        "client_id": client_id,
+        "event": event,
+        "data": data,
+        "ts": _utcnow().isoformat(),
+    })
+    if len(_journey_traces) > 200:
+        _journey_traces[:] = _journey_traces[-200:]
+
+def get_journey_traces(limit: int = 50) -> list[dict]:
+    return list(_journey_traces)[-limit:]
 
 async def journey_inject_node(state: AgentState, journey_engine) -> dict[str, Any]:
     """
@@ -38,6 +56,11 @@ async def journey_inject_node(state: AgentState, journey_engine) -> dict[str, An
         )
 
         if system_prompt:
+            trace_journey(client_id, "prompt_composed", {
+                "prompt_len": len(system_prompt),
+                "agent_name": "",
+                "phase_name": "",
+            })
             return {"journey_system_prompt": system_prompt}
     except Exception as e:
         logger.error(f"Error in journey_inject_node: {e}")
@@ -75,6 +98,14 @@ async def journey_advance_node(state: AgentState, journey_engine) -> dict[str, A
             llm_response=llm_response,
             agent_data=agent_data
         )
+
+        trace_journey(client_id, "response_processed", {
+            "advanced": result.get("advanced"),
+            "phase_completed": result.get("phase_completed"),
+            "tags": result.get("suggested_tags", []),
+            "agent": agent_data.get("name", "?") if agent_data else "?",
+            "response_len": len(llm_response),
+        })
 
         # Detect collected data from JSON
         data = None
