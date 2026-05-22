@@ -617,10 +617,38 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
 
         prompt = system_prompt
 
-        # Placeholder replacements
+        # K6: Template placeholders
         prompt = prompt.replace("{{step_title}}", phase_data.get("name", ""))
         prompt = prompt.replace("{{step_objective}}", phase_data.get("objective", ""))
         prompt = prompt.replace("{{agent_name}}", agent_data.get("name", ""))
+        prompt = prompt.replace("{{journey_name}}", journey.get("name", ""))
+        prompt = prompt.replace("{{coach_name}}", coach_name)
+
+        # Resolve {{client_name}} from collected_data or shared profile
+        resolved_client_name = ""
+        collected_data_placeholder = cj_data.get("collected_data", {}) or {}
+        if isinstance(collected_data_placeholder, str):
+            try:
+                collected_data_placeholder = json.loads(collected_data_placeholder)
+            except (json.JSONDecodeError, ValueError):
+                collected_data_placeholder = {}
+        for key in ("nombre", "client_name", "name", "cliente"):
+            if collected_data_placeholder.get(key):
+                resolved_client_name = collected_data_placeholder[key]
+                break
+        sp = await self.get_shared_profile(self._sf, client_id)
+        if not resolved_client_name and sp:
+            resolved_client_name = sp.get("profile_data", {}).get("nombre", "") or sp.get("profile_data", {}).get("name", "")
+        prompt = prompt.replace("{{client_name}}", resolved_client_name)
+
+        # Resolve {{collected.*}} placeholders (e.g. {{collected.email}})
+        import re
+        collected_refs = re.findall(r"\{\{collected\.([^}]+)\}\}", prompt)
+        for ref in collected_refs:
+            val = collected_data_placeholder.get(ref, "")
+            if not val and sp:
+                val = sp.get("profile_data", {}).get(ref, "")
+            prompt = prompt.replace("{{collected." + ref + "}}", str(val) if val else "")
 
         # Collected data from client_journeys.collected_data (source of truth)
         collected_data = cj_data.get("collected_data", {}) or {}

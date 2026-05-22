@@ -220,3 +220,19 @@ async def test_validate_agent_output_rag_config():
     result2 = validate_agent_output(schema, output2)
     assert result2["valid"] is False
     assert any("number" in e for e in result2["errors"])
+
+
+def test_placeholder_client_name():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {"structured": {"required_fields": {"name": "string"}}}
+    output = {"structured": {"name": "Juan"}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is True
+
+
+def test_placeholder_unknown_left_as_is():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {}
+    output = {"msg": "hello"}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is True
