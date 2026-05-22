@@ -99,7 +99,16 @@ async def admin_page(req: Request):
         return RedirectResponse(url="/coach", status_code=303)
     coach_db = req.app.state.coach_db
     coaches = await coach_db.list_coaches()
-    return _render(req, "admin.html", {"title": "Admin", "coaches": coaches, "coach": coach})
+    journeys = []
+    je = req.app.state.journey_engine
+    if je:
+        try:
+            journeys = await je.list_journeys("default", full=False)
+            coach_j = await je.list_journeys(coach["id"], full=False)
+            journeys = journeys + coach_j
+        except Exception:
+            pass
+    return _render(req, "admin.html", {"title": "Admin", "coaches": coaches, "coach": coach, "journeys": journeys})
 
 
 @router.post("/admin/coach/create")
@@ -139,6 +148,7 @@ async def admin_update_coach(req: Request, coach_id: str):
         role=body.get("role"),
         plan=body.get("plan"),
         language=body.get("language"),
+        default_journey_id=body.get("default_journey_id", ""),
         telegram_token=body.get("telegram_token"),
         telegram_chat_id=body.get("telegram_chat_id"),
         telegram_bot_name=body.get("telegram_bot_name"),

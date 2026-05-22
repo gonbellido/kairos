@@ -52,6 +52,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --no-
 - `kairos/engine/journey_architect/architect.py` — mejor error handling
 - `kairos/web/templates/admin_journeys.html` — JS fixes, cleanup duplicado
 - `kairos/api/middleware.py` — agregado `/api/v1/architect` a whitelist del AuthMiddleware
+- `kairos/web/templates/admin.html` — agregado selector de journey por defecto en modal de edición de coach
+- `kairos/api/routes/web.py` — admin route ahora carga journeys; update coach pasa `default_journey_id`
 
 ## Env files
 - Producción: `/opt/kairos/.env.production` (usado con `--env-file`)

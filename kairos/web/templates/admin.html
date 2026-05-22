@@ -20,6 +20,7 @@
                 <th>Plan</th>
                 <th>Idioma</th>
                 <th>Rol</th>
+                <th>Journey</th>
                 <th>Creado</th>
                 <th></th>
             </tr>
@@ -32,10 +33,11 @@
                 <td><span class="badge {% if c.plan == 'pro' %}badge-teal{% elif c.plan == 'admin' %}badge-indigo{% else %}badge-neutral{% endif %}">{{ c.get('plan', 'free') }}</span></td>
                 <td><span class="badge badge-neutral">{{ {'es': '🇪🇸 ES', 'en': '🇬🇧 EN'}.get(c.get('language', 'es'), c.get('language', 'es')) }}</span></td>
                 <td><span class="badge badge-neutral">{{ c.role }}</span></td>
+                <td><span class="text-sm">{{ journeys|selectattr('id', 'equalto', c.get('default_journey_id', ''))|first|attr('name') or '—' }}</span></td>
                 <td><span class="text-sm">{{ c.created_at[:10] if c.created_at else '' }}</span></td>
                 <td>
                     <div class="flex gap-1">
-                        <button onclick="openEditModal('{{ c.id }}', '{{ c.name }}', '{{ c.email }}', '{{ c.role }}', '{{ c.get('plan', 'free') }}', '{{ c.get('language', 'es') }}')" class="btn btn-ghost btn-sm">Editar</button>
+                        <button onclick="openEditModal('{{ c.id }}', '{{ c.name }}', '{{ c.email }}', '{{ c.role }}', '{{ c.get('plan', 'free') }}', '{{ c.get('language', 'es') }}', '{{ c.get('default_journey_id', '') }}')" class="btn btn-ghost btn-sm">Editar</button>
                         {% if c.role != 'admin' %}
                         <button onclick="deleteCoach('{{ c.id }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
                         {% endif %}
@@ -82,6 +84,15 @@
                 </div>
             </div>
             <div class="form-group">
+                <label class="label" for="coach-default-journey">Journey por defecto</label>
+                <select id="coach-default-journey" class="input">
+                    <option value="">— Sin journey —</option>
+                    {% for j in journeys %}
+                    <option value="{{ j.id }}">{{ j.name }} ({{ j.profile_type }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
                 <label class="label" for="coach-password">Contraseña (dejar vacío para no cambiar)</label>
                 <input type="password" id="coach-password" class="input" placeholder="••••••••">
             </div>
@@ -109,7 +120,7 @@ function openCreateModal() {
     document.getElementById('coach-modal').classList.remove('hidden');
 }
 
-function openEditModal(id, name, email, role, plan, language) {
+function openEditModal(id, name, email, role, plan, language, defaultJourneyId) {
     editingId = id;
     document.getElementById('modal-title').textContent = 'Editar coach';
     document.getElementById('modal-submit').textContent = 'Guardar';
@@ -119,6 +130,7 @@ function openEditModal(id, name, email, role, plan, language) {
     document.getElementById('coach-plan').value = plan || 'free';
     document.getElementById('coach-language').value = language || 'es';
     document.getElementById('coach-password').value = '';
+    document.getElementById('coach-default-journey').value = defaultJourneyId || '';
     document.getElementById('coach-modal').classList.remove('hidden');
 }
 
@@ -133,6 +145,7 @@ document.getElementById('coach-form').addEventListener('submit', async (e) => {
         email: document.getElementById('coach-email').value,
         plan: document.getElementById('coach-plan').value,
         language: document.getElementById('coach-language').value,
+        default_journey_id: document.getElementById('coach-default-journey').value,
     };
     const pwd = document.getElementById('coach-password').value;
     if (pwd) data.password = pwd;
