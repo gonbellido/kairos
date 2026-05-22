@@ -90,3 +90,45 @@ async def test_build_from_prompt_retry_logic():
 
     assert result["journey"]["name"] == "Retry"
     assert llm.ainvoke.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_valid():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {
+        "structured": {"required_fields": {"name": "string", "age": "number"}}
+    }
+    output = {"structured": {"name": "Juan", "age": 30}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_missing_field():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {
+        "structured": {"required_fields": {"name": "string", "age": "number"}}
+    }
+    output = {"structured": {"name": "Juan"}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is False
+    assert any("age" in e for e in result["errors"])
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_wrong_type():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {
+        "structured": {"required_fields": {"age": "number"}}
+    }
+    output = {"structured": {"age": "treinta"}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is False
+    assert any("number" in e for e in result["errors"])
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_empty_schema():
+    from kairos.engine.journey_engine import validate_agent_output
+    result = validate_agent_output({}, {"structured": {"name": "Juan"}})
+    assert result["valid"] is True

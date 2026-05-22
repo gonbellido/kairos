@@ -5,11 +5,13 @@ _utcnow = lambda: datetime.now(tz=timezone.utc)
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
+import json
 from kairos.core.state import AgentState, Decision
 from kairos.core.memory import CaseMemory, CaseMetadata, ExecutionMemory
 from kairos.core.impronta import Impronta
 from kairos.engine.profile_engine import ProfileEngine
 from kairos.engine.prompt_engine import PromptEngine
+from kairos.engine.journey_engine import validate_agent_output
 from kairos.memory.stores import CaseStore, ExecutionStore
 from kairos.config import get_settings
 from kairos.engine.activity import log_activity
@@ -88,6 +90,22 @@ async def worker_node(
             response_format={"type": "json_object"},
         )
         llm_text = resp.choices[0].message.content or ""
+
+        # K3: Validate JSON output against agent schema
+        journey_ctx = state.get("journey_context", {})
+        journey_obj = journey_ctx.get("journey", {})
+        agents = journey_obj.get("agents", [])
+        current_agent_id = journey_ctx.get("current_agent_id")
+        agent_data = next((a for a in agents if a["id"] == current_agent_id), None)
+        output_schema = (agent_data or {}).get("output_schema", {})
+        if output_schema:
+            try:
+                parsed = json.loads(llm_text)
+            except json.JSONDecodeError:
+                parsed = {}
+            validation = validate_agent_output(output_schema, parsed)
+            if not validation["valid"]:
+                logger.warning("K3 validation failed: %s", validation["errors"])
         log_activity("prompt_used", {"client_id": state.get("context", {}).get("client_id", ""),
                       "journey": True, "json_mode": True, "prompt_len": len(prompt)})
     else:
