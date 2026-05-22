@@ -197,3 +197,26 @@ async def test_validate_journey_spec_tag_inexistent_order():
     result = await arch.validate_journey_spec(spec)
     assert result["valid"] is False
     assert any("5" in e for e in result["errors"])
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_no_rag_by_default():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {"structured": {"required_fields": {"msg": "string"}}}
+    output = {"structured": {"msg": "hello"}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is True
+
+
+@pytest.mark.asyncio
+async def test_validate_agent_output_rag_config():
+    from kairos.engine.journey_engine import validate_agent_output
+    schema = {"structured": {"required_fields": {"answer": "string", "confidence": "number"}}}
+    output = {"structured": {"answer": "yes", "confidence": 0.9}}
+    result = validate_agent_output(schema, output)
+    assert result["valid"] is True
+    # Wrong type
+    output2 = {"structured": {"answer": "yes", "confidence": "high"}}
+    result2 = validate_agent_output(schema, output2)
+    assert result2["valid"] is False
+    assert any("number" in e for e in result2["errors"])

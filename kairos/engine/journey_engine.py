@@ -595,7 +595,8 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
 
     async def compose_agent_prompt(self, client_id: str, message: str,
                                     coach_name: str = "", language: str = "es",
-                                    memory_hits: list = None, coach_imprint: dict = None) -> str:
+                                    memory_hits: list = None, coach_imprint: dict = None,
+                                    case_store=None) -> str:
         """K6: Compose prompt using agent's system_prompt + collected data + state."""
         cj_data = await self.get_client_journey(client_id)
         if not cj_data or not cj_data.get("journey"):
@@ -652,6 +653,29 @@ def validate_agent_output(schema: dict, output: dict) -> dict:
             if session_hits:
                 prompt += "\n\n## Historial de sesiones anteriores del cliente\n"
                 prompt += "\n---\n".join(h["content"][:400] for h in session_hits[:2])
+
+        # K4: CaseStore RAG — inject relevant cases from N2 memory
+        rag_top_k = agent_data.get("rag_top_k", 0) or 0
+        if rag_top_k > 0 and case_store and hasattr(case_store, "search_relevant"):
+            try:
+                cases = await case_store.search_relevant(
+                    query_text=message,
+                    profile_id=journey.get("profile_type", "coaching"),
+                    client_id=client_id,
+                    top_k=rag_top_k,
+                )
+                valid_cases = [c for c in cases if c.get("_score", 0) > 0.5 and c.get("content")]
+                if valid_cases:
+                    prompt += "\n\n## Casos relevantes de memoria\n"
+                    for c in valid_cases[:rag_top_k]:
+                        content = c.get("content", "")
+                        outcome = c.get("outcome", "")
+                        case_text = content[:400]
+                        if outcome:
+                            case_text += f"\nResultado: {outcome[:200]}"
+                        prompt += f"\n---\n{case_text}"
+            except Exception:
+                pass
 
         prompt += f"""
 ## Mensaje del cliente

@@ -21,12 +21,15 @@ async def journey_inject_node(state: AgentState, journey_engine) -> dict[str, An
         return {}
 
     try:
-        # compose_agent_prompt(self, client_id, message, coach_name, language, memory_hits, coach_imprint)
         message = state.get("message", "")
+        memory_hits = state.get("memory_hits") or state.get("ranked_cases", [])
+        case_store = getattr(journey_engine, "_case_store", None)
 
         system_prompt = await journey_engine.compose_agent_prompt(
             client_id=client_id,
-            message=message
+            message=message,
+            memory_hits=memory_hits,
+            case_store=case_store,
         )
 
         if system_prompt:
