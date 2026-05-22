@@ -118,7 +118,7 @@ voice:
 ### Dependencias (pyproject.toml)
 ```
 voice = ["livekit-agents>=1.5", "livekit-plugins-cartesia", "livekit-plugins-silero",
-         "livekit-plugins-deepgram", "livekit-plugins-openai"]
+         "livekit-plugins-deepgram", "livekit-plugins-openai", "livekit-plugins-ai-coustics"]
 ```
 
 ## Servicios

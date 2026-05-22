@@ -73,9 +73,10 @@ services:
 
   # ── Voice Agent (LiveKit) ──
   voice:
-    build: .
+    build:
+      context: .
+      dockerfile: voice.Dockerfile
     restart: unless-stopped
-    command: python -m kairos.engine.voice_agent start
     expose:
       - "8001"
     env_file:
@@ -96,14 +97,13 @@ services:
     networks: [kairos_net]
     depends_on:
       - livekit
+      - app
     deploy:
       resources:
         limits:
           memory: 1G
         reservations:
           memory: 256M
-    depends_on:
-      - app
 
   # ── Qdrant Vector DB ──
   qdrant:
