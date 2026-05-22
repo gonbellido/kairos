@@ -701,6 +701,26 @@ async def coach_create_client(req: Request):
                   "access_token": uuid4().hex[:12]},
     )
     await store.upsert_profile(profile)
+
+    # Auto-assign default journey if coach has one
+    je = getattr(req.app.state, "journey_engine", None)
+    default_journey_id = coach.get("default_journey_id", "")
+    if je and default_journey_id:
+        try:
+            await je.assign_client(profile.id, coach["id"], default_journey_id)
+        except Exception:
+            pass
+    elif je:
+        try:
+            default_j = await je.list_journeys("default", full=False)
+            coach_j = await je.list_journeys(coach["id"], full=False) if coach["id"] != "default" else []
+            all_j = default_j + coach_j
+            fallback = next((j for j in all_j if j.get("profile_type") == "coaching"), all_j[0] if all_j else None)
+            if fallback:
+                await je.assign_client(profile.id, coach["id"], fallback["id"])
+        except Exception:
+            pass
+
     return JSONResponse(profile.model_dump(mode="json"))
 
 
