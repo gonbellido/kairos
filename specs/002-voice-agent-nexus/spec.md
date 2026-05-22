@@ -56,6 +56,28 @@ Como cliente, quiero que la voz del coach transmita empatía o urgencia según e
 
 **Independent Test**: Cliente expresa frustración → la voz del coach suena más empática.
 
+### US5 — Universal Data Collection (P0 — Core)
+
+Como cliente, toda la información que proporciono durante un journey se guarda automáticamente en mi ficha de perfil, independientemente del formato JSON que use el agente.
+
+**Independent Test**: Agente con formato `{"collected_data":{...}}` y otro con `{"structured":{"collected_data":{...}}}` — ambos guardan los datos en el shared profile.
+
+**Acceptance Scenarios**:
+1. **Given** un agente que responde con `{"collected_data": {"nombre": "Juan"}}`, **When** se procesa la respuesta, **Then** `nombre=Juan` se guarda en shared_profile
+2. **Given** un agente que responde con `{"structured": {"collected_data": {"email": "j@c.com"}}}`, **When** se procesa, **Then** `email=j@c.com` se guarda
+3. **Given** un agente que responde con `{"structured": {"edad": 30}}`, **When** se procesa, **Then** `edad=30` se guarda
+4. **Given** datos ya existentes en shared_profile, **When** se guardan nuevos, **Then** se mergean sin perder los anteriores
+
+### US6 — Coach Dashboard Profile View (P1)
+
+Como coach, quiero ver una ficha del cliente con TODOS los datos recolectados durante los journeys, actualizada en tiempo real.
+
+**Independent Test**: Cliente completa paso 1 de un journey → coach ve los datos en el dashboard.
+
+**Acceptance Scenarios**:
+1. **Given** un cliente con datos recolectados, **When** el coach abre su ficha, **Then** ve todos los campos recolectados
+2. **Given** un cliente en medio de un journey, **When** el coach abre el dashboard, **Then** ve el progreso + datos acumulados
+
 ## Tech Stack Propuesto
 
 | Componente | Tecnología | Razón |

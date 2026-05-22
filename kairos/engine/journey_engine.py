@@ -724,23 +724,45 @@ class JourneyEngine:
             if suggested_tags:
                 result["suggested_tags"] = suggested_tags
 
-            # Save collected_data or structured fields to profile
-            if isinstance(structured, dict):
-                sp = await self.get_shared_profile(self._sf, client_id)
-                if sp:
-                    profile_data = dict(sp.get("profile_data", {}) or {})
-                    # collected_data has the client intake fields
-                    collected = structured.get("collected_data", {})
-                    if isinstance(collected, dict) and collected:
-                        profile_data.update({k: v for k, v in collected.items() if v and not k.startswith("_")})
-                    else:
-                        # Fallback: save all structured keys except internal ones
-                        profile_data.update({k: v for k, v in structured.items()
-                                           if v and not k.startswith("_") and not k.startswith("phase")})
-                    await self.update_shared_profile(client_id, profile_data=profile_data)
+            # Core: Extract ALL collected data regardless of JSON format
+            # Supports: {"collected_data": {...}}, {"structured": {"collected_data": {...}}},
+            #           {"structured": {"field": "value", ...}}
+            all_fields = {}
 
-                    if structured.get("phase_completed"):
-                        result["phase_completed"] = True
+            # 1. Top-level collected_data (bioneuro format)
+            top_collected = data.get("collected_data", {})
+            if isinstance(top_collected, dict):
+                all_fields.update((k, v) for k, v in top_collected.items() if v and not k.startswith("_"))
+
+            # 2. structured.collected_data (new format)
+            if isinstance(structured, dict):
+                struct_collected = structured.get("collected_data", {})
+                if isinstance(struct_collected, dict):
+                    all_fields.update((k, v) for k, v in struct_collected.items() if v and not k.startswith("_"))
+
+                # 3. structured.required_fields values
+                for key in structured:
+                    if key not in ("collected_data", "phase_completed") and not key.startswith("_"):
+                        val = structured[key]
+                        if isinstance(val, (str, int, float, bool)) and val:
+                            all_fields[key] = val
+
+            # Save to shared profile
+            if all_fields:
+                async with self._sf() as s:
+                    sp_result = await s.execute(
+                        select(ClientSharedProfileModel).where(ClientSharedProfileModel.client_id == client_id)
+                    )
+                    sp = sp_result.scalars().first()
+                    if sp:
+                        merged = dict(sp.profile_data or {})
+                        merged.update(all_fields)
+                        sp.profile_data = merged
+                        sp.updated_at = _utcnow()
+                    await s.commit()
+
+            if isinstance(structured, dict) and structured.get("phase_completed"):
+                result["phase_completed"] = True
 
         # K2: Tag transitions
         if result.get("suggested_tags") and agent_data:

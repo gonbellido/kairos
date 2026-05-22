@@ -7,6 +7,18 @@
 **Storage**: Qdrant (RAG), PostgreSQL (swarm state persistence)
 **Testing**: pytest + LiveKit test harness
 
+## Phase 0 — Universal Data Collection (P0 — Core)
+
+Antes de cualquier feature nuevo, el sistema de recolección de datos debe funcionar para TODOS los journeys, independientemente del formato JSON.
+
+**Fix**:
+- `validate_and_advance()`: extraer `collected_data` de nivel raíz Y de `structured.collected_data` Y campos sueltos de `structured`
+- `save_collected()`: mergear con shared_profile en vez de sobrescribir
+- `journey_advance_node()`: misma lógica de extracción unificada
+- Coach dashboard: mostrar `profile_data` del cliente con datos acumulados
+
+**Archivos**: `kairos/engine/journey_engine.py`, `kairos/agents/nodes/journey_agent.py`, `kairos/web/templates/coach/client_detail.html`
+
 ## Phases
 
 ### Phase 1 — LiveKit Agent Pipeline (US1)
