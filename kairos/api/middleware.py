@@ -27,7 +27,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if any(path.startswith(p) for p in ["/coach", "/admin", "/login", "/logout", "/static", "/client", "/telegram",
                                               "/api/v1/upload", "/api/v1/materials", "/api/v1/coach",
                                               "/api/v1/chat", "/api/v1/settings", "/api/v1/clients",
-                                              "/api/v1/journeys", "/api/v1/voice"]):
+                                              "/api/v1/journeys", "/api/v1/architect", "/api/v1/voice"]):
             return await call_next(request)
 
         if expected:
