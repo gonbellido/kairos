@@ -510,7 +510,6 @@ async function sendMessage(text) {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        removeTyping();
         let agentRow = null;
         let bubbleEl = null;
 
@@ -523,8 +522,9 @@ async function sendMessage(text) {
                     const ev = JSON.parse(line.slice(6));
                     if (ev.type === 'token') {
                         fullResponse += ev.content;
-                        // Render streaming tokens
+                        // Remove typing indicator on first token
                         if (!agentRow) {
+                            removeTyping();
                             welcomeEl?.remove();
                             agentRow = document.createElement('div');
                             agentRow.className = 'msg-row agent';

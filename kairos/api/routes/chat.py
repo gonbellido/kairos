@@ -127,8 +127,13 @@ async def _handle_legacy(req, body, client_id, je):
 def _extract_message(text: str) -> str:
     try:
         data = json.loads(text)
-        if isinstance(data, dict) and "message" in data:
-            return data["message"]
+        if isinstance(data, dict):
+            if "message" in data:
+                return data["message"]
+            # Fallback: use first non-empty field value as the message
+            for v in data.values():
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
     except Exception:
         pass
     return text

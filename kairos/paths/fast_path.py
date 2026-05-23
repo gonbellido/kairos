@@ -77,11 +77,24 @@ async def run(
     use_json = bool(collects_fields)
     response_text = await _call_llm(prompt, message, use_json)
 
+    # Debug: log raw LLM response and collected data
+    logger.info("fast_path LLM raw response (%d chars): %s", len(response_text), response_text[:300])
+
     # Extract collected data from JSON response
     new_data = _extract_data(response_text, expected_fields=collects_fields)
+    logger.info("fast_path extracted data: %s", json.dumps(new_data, default=str)[:300])
     if new_data and journey_engine and client_id:
         collected.update(new_data)
+        logger.info("fast_path merged collected: %s", json.dumps(collected, default=str)[:300])
         await _update_collected(journey_engine, client_id, collected)
+    elif not new_data and collects_fields and journey_engine and client_id:
+        # LLM didn't extract data — use user's message as value for first missing field
+        missing = [f for f in collects_fields if f not in collected or not collected[f]]
+        if missing and message.strip():
+            inferred = {missing[0]: message.strip()}
+            logger.info("fast_path inferring data from user message: %s", inferred)
+            collected.update(inferred)
+            await _update_collected(journey_engine, client_id, collected)
 
     # Clean up: extract message text, strip DATA tags
     response_text = _clean_response(response_text)
@@ -92,6 +105,8 @@ async def run(
         data_count = len([v for k, v in collected.items()
                          if k.replace('_', '').lower() in expected and v and not k.startswith("_")])
         threshold = min(len(collects_fields), 5)
+        logger.info("fast_path advance check: %d/%d fields (need %d), collects=%s, expected=%s",
+                     data_count, len(collects_fields), threshold, collects_fields, expected)
         logger.info("fast_path advance check: %d/%d fields (need %d)", data_count, len(collects_fields), threshold)
         if data_count >= threshold:
             try:
@@ -230,6 +245,7 @@ async def _call_llm(system_prompt: str, user_message: str, force_json: bool = Fa
         api_key=settings.get("llm_api_key", ""),
         base_url=settings.get("llm_base_url", ""),
     )
+    max_tokens = int(settings.get("llm_max_tokens", 4096))
     kwargs = {
         "model": settings.get("llm_model", "deepseek-chat"),
         "messages": [
@@ -237,7 +253,7 @@ async def _call_llm(system_prompt: str, user_message: str, force_json: bool = Fa
             {"role": "user", "content": user_message},
         ],
         "temperature": float(settings.get("llm_temperature", 0.7)),
-        "max_tokens": int(settings.get("llm_max_tokens", 2048)),
+        "max_tokens": max_tokens,
     }
     if force_json:
         kwargs["response_format"] = {"type": "json_object"}
@@ -262,5 +278,5 @@ def _get_settings() -> dict:
         "llm_base_url": os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
         "llm_model": os.getenv("LLM_MODEL", "deepseek-chat"),
         "llm_temperature": os.getenv("LLM_TEMPERATURE", "0.7"),
-        "llm_max_tokens": os.getenv("LLM_MAX_TOKENS", "2048"),
+        "llm_max_tokens": os.getenv("LLM_MAX_TOKENS", "4096"),
     }

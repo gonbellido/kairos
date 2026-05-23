@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from kairos.agents.classifier import classify, InputChannel, MessagePath
 from kairos.engine.activity import log_activity
+from .chat import _extract_message
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -105,7 +106,7 @@ async def chat_stream(req: Request, body: StreamRequest):
                     user_id=body.user_id,
                     context=body.context,
                 )
-                response = raw_result.get("final_response", "")
+                response = _extract_message(raw_result.get("final_response", ""))
                 confidence = raw_result.get("confidence", 0.0)
                 if raw_result.get("journey_advanced"):
                     adv_info = raw_result.get("journey_advance_info")
