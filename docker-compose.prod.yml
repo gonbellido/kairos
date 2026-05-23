@@ -63,10 +63,11 @@ services:
     image: livekit/livekit-server:latest
     restart: unless-stopped
     command: --config /etc/livekit.yaml --node-ip=livekit
+    ports:
+      - "7880:7880"
+      - "7882:7882/udp"
     expose:
-      - "7880"
       - "7881"
-      - "7882"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     networks: [kairos_net]

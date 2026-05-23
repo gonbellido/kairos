@@ -27,7 +27,7 @@ async def get_voice_token(req: Request):
     client_id = client.id
     room_name = f"client_{client_id}"
 
-    livekit_url = os.environ.get("LIVEKIT_URL", "")
+    livekit_url = os.environ.get("LIVEKIT_PUBLIC_URL") or os.environ.get("LIVEKIT_URL", "")
     api_key = os.environ.get("LIVEKIT_API_KEY", "")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
 

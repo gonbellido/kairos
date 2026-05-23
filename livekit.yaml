@@ -4,7 +4,7 @@ bind_addresses:
 rtc:
   port_range_start: 7882
   port_range_end: 7882
-  use_external_ip: false
+  use_external_ip: true
   udp_port: 7882
 keys:
   APIkey_787bae4a7733805b989b868072fd7874da8f8a2f165df525: secret_livekit_kairos_2026
