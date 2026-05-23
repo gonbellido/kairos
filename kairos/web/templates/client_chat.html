@@ -848,19 +848,29 @@ async function toggleLiveKitCall() {
     try {
         const r = await fetch('/api/v1/voice/token');
         const d = await r.json();
+        console.log('[LK] Token response:', d);
         if (!d.ok) {
-            alert('Voz no disponible: ' + (d.error || 'error'));
+            alert('Voz no disponible: ' + (d.error || 'error') + '\nURL: ' + (d.url || '?'));
             btn.textContent = '📞';
             btn.disabled = false;
             return;
         }
-        await connectLiveKit(d.url, d.token, d.room);
-        btn.textContent = '🔴';
-        btn.style.background = 'rgba(239,68,68,0.2)';
-        btn.style.borderColor = '#ef4444';
-        btn.style.color = '#ef4444';
+        console.log('[LK] Connecting to:', d.url, 'room:', d.room);
+        try {
+            await connectLiveKit(d.url, d.token, d.room);
+            console.log('[LK] Connected successfully');
+            btn.textContent = '🔴';
+            btn.style.background = 'rgba(239,68,68,0.2)';
+            btn.style.borderColor = '#ef4444';
+            btn.style.color = '#ef4444';
+        } catch (connErr) {
+            console.error('[LK] Connection error:', connErr);
+            alert('Error de conexión: ' + connErr.message + '\nURL: ' + d.url + '\nRoom: ' + d.room);
+            btn.textContent = '📞';
+        }
     } catch (e) {
-        alert('Error al conectar: ' + e.message);
+        console.error('[LK] Fetch error:', e);
+        alert('Error al obtener token: ' + e.message);
         btn.textContent = '📞';
     }
     btn.disabled = false;

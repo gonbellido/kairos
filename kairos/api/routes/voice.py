@@ -31,12 +31,21 @@ async def get_voice_token(req: Request):
     api_key = os.environ.get("LIVEKIT_API_KEY", "")
     api_secret = os.environ.get("LIVEKIT_API_SECRET", "")
 
+    logger.info("[VOICE] Token request: client=%s room=%s url=%s", client_id, room_name, livekit_url)
+    logger.info("[VOICE] Env: LIVEKIT_URL=%s LIVEKIT_PUBLIC_URL=%s LIVEKIT_API_KEY=%s",
+                os.environ.get("LIVEKIT_URL", ""),
+                os.environ.get("LIVEKIT_PUBLIC_URL", ""),
+                "***" if api_key else "MISSING")
+    logger.info("[VOICE] LIVEKIT_API_SECRET present=%s", "yes" if api_secret else "no")
+
     if not all([livekit_url, api_key, api_secret]):
+        logger.warning("[VOICE] Missing config: url=%s key=%s secret=%s",
+                       bool(livekit_url), bool(api_key), bool(api_secret))
         return JSONResponse({
             "ok": False,
-            "error": "LiveKit not configured. Set LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET",
+            "error": "LiveKit not configured",
             "room": room_name,
-            "url": livekit_url or "wss://livekit.ether.care",
+            "url": livekit_url or "",
         })
 
     try:
@@ -53,6 +62,24 @@ async def get_voice_token(req: Request):
         ))
 
         jwt = token_obj.to_jwt()
+        logger.info("[VOICE] Token generated OK: room=%s url=%s token_len=%s",
+                    room_name, livekit_url, len(jwt))
+
+        # Dispatch the agent to the room
+        try:
+            internal_url = os.environ.get("LIVEKIT_URL", "http://livekit:7880")
+            lkapi = lk_api.LiveKitAPI(url=internal_url, api_key=api_key, api_secret=api_secret)
+            dispatch = await lkapi.agent_dispatch.create_dispatch(
+                lk_api.CreateAgentDispatchRequest(
+                    agent_name="kairos-voice",
+                    room=room_name,
+                    metadata='{"source": "client_chat"}',
+                )
+            )
+            logger.info("[VOICE] Agent dispatched: %s", dispatch)
+            await lkapi.aclose()
+        except Exception as dispatch_err:
+            logger.warning("[VOICE] Agent dispatch failed (non-fatal): %s", dispatch_err)
 
         return {
             "ok": True,

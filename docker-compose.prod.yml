@@ -62,12 +62,12 @@ services:
   livekit:
     image: livekit/livekit-server:latest
     restart: unless-stopped
-    command: --config /etc/livekit.yaml --node-ip=livekit
+    command: --config /etc/livekit.yaml --node-ip=95.217.217.222
     ports:
       - "7880:7880"
-      - "7882:7882/udp"
     expose:
       - "7881"
+      - "7882"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     networks: [kairos_net]
@@ -95,6 +95,8 @@ services:
     volumes:
       - ./kairos:/app/kairos
       - ./profiles:/app/profiles
+    extra_hosts:
+      - "livekit:172.18.0.5"
     networks: [kairos_net]
     depends_on:
       - livekit
