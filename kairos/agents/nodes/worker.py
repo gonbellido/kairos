@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
+import logging
 from typing import Any
 
+logger = logging.getLogger(__name__)
 _utcnow = lambda: datetime.now(tz=timezone.utc)
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage

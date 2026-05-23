@@ -57,7 +57,8 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         stt=deepgram.STT(**stt_kwargs),
         llm=openai.LLM(model=openai_model, base_url=openai_base_url, api_key=openai_api_key),
-        tts=cartesia.TTS(voice=cartesia_voice, api_key=cartesia_key) if cartesia_key else None,
+        tts=cartesia.TTS(model="sonic-2", voice=cartesia_voice, language="es",
+                          api_key=cartesia_key) if cartesia_key else None,
         vad=silero.VAD.load(),
     )
 

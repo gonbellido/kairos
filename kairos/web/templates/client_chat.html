@@ -423,6 +423,7 @@ const voiceTranscript = document.getElementById('voice-transcript');
 
 // ── State ──
 let isSending = false;
+let voiceActive = false;
 
 // ── Message rendering ──
 function now() {
@@ -542,25 +543,31 @@ async function sendMessage(text) {
                         // Update bubble with parsed markdown every few tokens
                         bubbleEl.innerHTML = marked.parse(fullResponse);
                         scrollToBottom();
-                    } else if (ev.type === 'done' || ev.type === 'error') {
-                        if (ev.type === 'error') {
-                            removeTyping();
-                            addMessage('Error al procesar tu mensaje. Intenta de nuevo.', 'agent');
-                        }
+                    } else if (ev.type === 'done') {
                         if (agentRow) {
-                            // Add timestamp
                             const ts = document.createElement('span');
                             ts.className = 'msg-time';
                             ts.textContent = now();
                             agentRow.querySelector('.bubble-wrap').appendChild(ts);
                         }
+                        break;
+                    } else if (ev.type === 'error') {
+                        if (!fullResponse) {
+                            addMessage('Error al procesar tu mensaje. Intenta de nuevo.', 'agent');
+                        } else if (agentRow) {
+                            const ts = document.createElement('span');
+                            ts.className = 'msg-time';
+                            ts.textContent = now();
+                            agentRow.querySelector('.bubble-wrap').appendChild(ts);
+                        }
+                        break;
                     }
                 } catch(e) {}
             }
         }
 
-        // Auto-TTS in voice mode
-        if (voiceActive && fullResponse) {
+        // When LiveKit is active, agent audio comes through WebRTC — skip browser TTS
+        if (voiceActive && !lkConnected && fullResponse) {
             speak(fullResponse);
         }
 
@@ -576,7 +583,10 @@ async function sendMessage(text) {
 }
 
 // Quick send for voice mode
+let _voiceSending = false;
 async function sendMessageSync(text) {
+    if (!text?.trim() || _voiceSending) return;
+    _voiceSending = true;
     addMessage(text, 'user');
     setVoiceState('processing');
     try {
@@ -595,7 +605,7 @@ async function sendMessageSync(text) {
         const reply = data.response || '';
         if (reply) {
             addMessage(reply, 'agent');
-            speak(reply);
+            if (!lkConnected) speak(reply);
         } else {
             setVoiceState('listening');
             startListening();
@@ -605,6 +615,7 @@ async function sendMessageSync(text) {
         setVoiceState('listening');
         startListening();
     }
+    _voiceSending = false;
 }
 
 // ── Text input auto-resize ──
@@ -727,6 +738,7 @@ async function toggleLiveKitCall() {
     }
 
     overlay.classList.add('active');
+    voiceActive = true;
     setVoiceState('processing');
     statusText.textContent = 'Conectando...';
     transcript.textContent = '';
@@ -845,6 +857,7 @@ async function connectLiveKit(url, token, roomName) {
 }
 
 async function disconnectLiveKit() {
+    voiceActive = false;
     if (lkRoom) {
         lkRoom.disconnect();
         lkRoom = null;

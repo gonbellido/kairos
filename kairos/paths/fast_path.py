@@ -78,7 +78,7 @@ async def run(
     response_text = await _call_llm(prompt, message, use_json)
 
     # Extract collected data from JSON response
-    new_data = _extract_data(response_text)
+    new_data = _extract_data(response_text, expected_fields=collects_fields)
     if new_data and journey_engine and client_id:
         collected.update(new_data)
         await _update_collected(journey_engine, client_id, collected)
@@ -88,7 +88,9 @@ async def run(
 
     # Check if enough data collected → advance (5+ is enough)
     if journey_engine and client_id and collects_fields and collected:
-        data_count = len([v for k, v in collected.items() if v and not k.startswith("_")])
+        expected = [f.replace('_', '').lower() for f in collects_fields]
+        data_count = len([v for k, v in collected.items()
+                         if k.replace('_', '').lower() in expected and v and not k.startswith("_")])
         threshold = min(len(collects_fields), 5)
         logger.info("fast_path advance check: %d/%d fields (need %d)", data_count, len(collects_fields), threshold)
         if data_count >= threshold:
@@ -112,9 +114,9 @@ def _build_format_instruction(missing: list, allowed_tags: list) -> str:
     """Standard JSON format wrapper appended to every intake-phase prompt."""
     parts = [
         '\n\n## Formato de respuesta (obligatorio)',
-        'Responde ÚNICAMENTE con JSON válido:',
+        'Responde ÚNICAMENTE con JSON válido. SIEMPRE incluye el campo "message" con tu respuesta al cliente:',
         '{"message": "texto al cliente", "collected_data": {"campo": "valor"}, "suggested_tags": [], "phase_completed": false}',
-        '- "message": lo que el cliente lee, en lenguaje natural y empático',
+        '- "message": OBLIGATORIO. Lo que el cliente lee, en lenguaje natural y empático. NUNCA omitas este campo.',
         '- "collected_data": SOLO campos NUEVOS recolectados en ESTE turno (no repitas los ya obtenidos)',
         '- "suggested_tags": lista de tags cuando completes todos los campos requeridos',
         '- "phase_completed": true únicamente cuando la fase esté completamente terminada',
@@ -129,7 +131,7 @@ def _build_format_instruction(missing: list, allowed_tags: list) -> str:
     return '\n'.join(parts)
 
 
-def _extract_data(response: str) -> dict:
+def _extract_data(response: str, expected_fields: list = None) -> dict:
     """Extract collected data from JSON response (handles code blocks)."""
     raw = response.strip()
     if raw.startswith("```"):
@@ -138,13 +140,45 @@ def _extract_data(response: str) -> dict:
     try:
         data = json.loads(raw.strip())
         if isinstance(data, dict):
-            # Check for collected_data or structured
-            collected = data.get("collected_data", data.get("structured", {}))
+            # 1. Check for collected_data (standard format)
+            collected = data.get("collected_data", None)
             if isinstance(collected, dict) and collected:
-                return {k: v for k, v in collected.items() if v and not k.startswith("_")}
+                result = {k: v for k, v in collected.items() if v and not k.startswith("_")}
+                return _normalize_field_names(result, expected_fields)
+            # 2. Check for structured.required_fields (output_schema format)
+            structured = data.get("structured", {})
+            if isinstance(structured, dict):
+                req = structured.get("required_fields", {})
+                if isinstance(req, dict) and req:
+                    result = {k: v for k, v in req.items() if v and not k.startswith("_")}
+                    return _normalize_field_names(result, expected_fields)
+            # 3. Fallback: top-level fields that look like data (not control fields)
+            result = {}
+            skip_keys = {"message", "suggested_tags", "phase_completed", "next_step_tag", "escalation_flag"}
+            for k, v in data.items():
+                if k not in skip_keys and v is not None and not k.startswith("_"):
+                    if isinstance(v, (str, int, float, bool, list)):
+                        result[k] = v
+            if result:
+                return _normalize_field_names(result, expected_fields)
     except (json.JSONDecodeError, ValueError):
         pass
     return {}
+
+
+def _normalize_field_names(data: dict, expected_fields: list = None) -> dict:
+    """Map field names to match expected fields (handles miedo1 -> miedo_1 mismatches)."""
+    if not expected_fields:
+        return data
+    expected_norm = {f.replace('_', '').lower(): f for f in expected_fields}
+    result = {}
+    for k, v in data.items():
+        norm = k.replace('_', '').lower()
+        if norm in expected_norm:
+            result[expected_norm[norm]] = v
+        else:
+            result[k] = v
+    return result
 
 
 def _clean_response(response: str) -> str:
@@ -157,8 +191,13 @@ def _clean_response(response: str) -> str:
     # JSON format
     try:
         data = json.loads(raw.strip())
-        if isinstance(data, dict) and "message" in data:
-            return data["message"]
+        if isinstance(data, dict):
+            if "message" in data:
+                return data["message"]
+            # Fallback: use first non-empty field value as the message
+            for v in data.values():
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
     except (json.JSONDecodeError, ValueError):
         pass
     return raw.strip()
