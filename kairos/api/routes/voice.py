@@ -147,3 +147,43 @@ async def text_to_speech(req: Request):
     except Exception as e:
         logger.error("TTS generation failed: %s", e)
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.get("/journey-prompt")
+async def voice_journey_prompt(req: Request):
+    """Return the voice-optimized system prompt for a client's voice journey."""
+    client_id = req.query_params.get("client_id", "")
+    if not client_id:
+        return JSONResponse({"ok": False, "error": "client_id required"}, status_code=400)
+
+    je = getattr(req.app.state, "journey_engine", None)
+    coach_db = getattr(req.app.state, "coach_db", None)
+    if not je or not coach_db:
+        return JSONResponse({"ok": False, "system_prompt": ""})
+
+    try:
+        # Get client's journey to find coach
+        cj = await je.get_client_journey(client_id)
+        if not cj:
+            return JSONResponse({"ok": False, "system_prompt": ""})
+
+        coach_id = cj.get("coach_id", "")
+        coach = await coach_db.get_by_id(coach_id) if coach_id else None
+        voice_journey_id = (coach or {}).get("voice_default_journey_id", "")
+
+        if voice_journey_id:
+            voice_journey = await je.get_journey(voice_journey_id)
+            if voice_journey:
+                # Compose voice-optimized prompt
+                prompt = await je.compose_agent_prompt(
+                    client_id=client_id,
+                    message="",
+                    coach_name=(coach or {}).get("name", ""),
+                )
+                if prompt:
+                    return {"ok": True, "system_prompt": prompt}
+
+        return {"ok": False, "system_prompt": ""}
+    except Exception as e:
+        logger.error("Voice journey prompt error: %s", e)
+        return {"ok": False, "system_prompt": ""}

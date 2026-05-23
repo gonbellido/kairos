@@ -32,6 +32,7 @@ class CoachDBA:
             "onboarding_meta": getattr(c, "onboarding_meta", None) or {},
             "profile_data": getattr(c, "profile_data", None) or {},
             "default_journey_id": getattr(c, "default_journey_id", ""),
+            "voice_default_journey_id": getattr(c, "voice_default_journey_id", ""),
             "created_at": c.created_at.isoformat() if c.created_at else "",
         }
 
@@ -62,7 +63,7 @@ class CoachDBA:
             if not coach:
                 return None
 
-            allowed = {"name", "email", "role", "plan", "language", "telegram_token", "telegram_chat_id", "telegram_bot_name", "impronta_data", "notification_settings", "onboarding_meta", "profile_data", "default_journey_id"}
+            allowed = {"name", "email", "role", "plan", "language", "telegram_token", "telegram_chat_id", "telegram_bot_name", "impronta_data", "notification_settings", "onboarding_meta", "profile_data",             "default_journey_id", "voice_default_journey_id"}
             for key, value in fields.items():
                 if key in allowed and value is not None:
                     setattr(coach, key, value)

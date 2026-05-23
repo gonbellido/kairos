@@ -759,6 +759,11 @@ async function toggleLiveKitCall() {
             }
         });
 
+        room.on(LivekitClient.RoomEvent.MediaDevicesError, (e) => {
+            console.error('[LK] Media devices error:', e);
+            statusText.textContent = 'Error de micrófono: ' + (e.message || 'permiso denegado');
+        });
+
         room.on(LivekitClient.RoomEvent.Disconnected, () => {
             lkConnected = false;
             statusText.textContent = 'Llamada finalizada';
@@ -776,6 +781,18 @@ async function toggleLiveKitCall() {
         lkRoom = room;
         lkConnected = true;
         micBtn.textContent = '🔴';
+        statusText.textContent = 'Conectado, activando micrófono...';
+        setVoiceState('processing');
+
+        // Publicar micrófono — SIN ESTO el agente no recibe audio
+        try {
+            await room.localParticipant.setMicrophoneEnabled(true);
+            console.log('[LK] Mic published ✅');
+        } catch (micErr) {
+            console.error('[LK] Mic error:', micErr);
+            statusText.textContent = 'Error al activar micrófono';
+        }
+
         statusText.textContent = 'Conectado — hablá cuando quieras';
         setVoiceState('listening');
         transcript.textContent = 'Agente de voz activo';

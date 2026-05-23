@@ -51,6 +51,7 @@ class CoachModel(Base):
     onboarding_meta = Column(JSON, default=dict)
     profile_data = Column(JSON, default=dict)
     default_journey_id = Column(String, default="")
+    voice_default_journey_id = Column(String, default="")
 
     password_hash = Column(String, nullable=False)
     salt = Column(String, nullable=False)
@@ -89,6 +90,7 @@ class JourneyModel(Base):
     status = Column(String, default="draft")
     tag_mappings = Column(JSON, default=dict)
     version = Column(Integer, default=1)
+    channel = Column(String, default="text")  # text, voice, both
     created_at = Column(DateTime(timezone=True), default=lambda: _utcnow())
     updated_at = Column(DateTime(timezone=True), default=lambda: _utcnow(), onupdate=lambda: _utcnow())
 
