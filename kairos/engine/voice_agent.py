@@ -6,9 +6,8 @@ import os
 import sys
 
 from livekit import agents
-from livekit.agents import AgentServer, AgentSession, Agent, inference, room_io, TurnHandlingOptions
-from livekit.plugins import ai_coustics, silero
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
+from livekit.agents import AgentServer, AgentSession, Agent, room_io
+from livekit.plugins import silero, deepgram, openai, cartesia
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger("kairos.voice")
@@ -42,46 +41,42 @@ async def voice_session(ctx: agents.JobContext):
                                      "694f9389-aac1-45b6-b726-9d9369183238")
     deepgram_key = os.environ.get("DEEPGRAM_API_KEY", "")
 
-    stt_kwargs = {}
+    stt_kwargs = {"model": "nova-3", "language": "multi"}
     if deepgram_key:
         stt_kwargs["api_key"] = deepgram_key
 
-    session = AgentSession(
-        stt=inference.STT(model="deepgram/nova-3", language="multi", **stt_kwargs),
-        llm=inference.LLM(
-            model=f"openai/{openai_model}",
-            base_url=openai_base_url,
-            api_key=openai_api_key,
-        ),
-        tts=inference.TTS(
-            model="cartesia/sonic-3",
-            voice=cartesia_voice,
-            api_key=cartesia_key,
-        ),
-        vad=silero.VAD.load(),
-        turn_handling=TurnHandlingOptions(
-            turn_detection=MultilingualModel(),
-        ),
-    )
+    llm_kwargs = {"model": openai_model, "base_url": openai_base_url}
+    if openai_api_key:
+        llm_kwargs["api_key"] = openai_api_key
 
-    room_opts = room_io.RoomOptions(
-        audio_input=room_io.AudioInputOptions(
-            noise_cancellation=ai_coustics.audio_enhancement(
-                model=ai_coustics.EnhancerModel.QUAIL_VF_S,
-            ),
-        ),
+    session = AgentSession(
+        stt=deepgram.STT(**stt_kwargs),
+        llm=openai.LLM(**llm_kwargs),
+        tts=cartesia.TTS(voice=cartesia_voice, api_key=cartesia_key) if cartesia_key else None,
+        vad=silero.VAD.load(),
     )
 
     await session.start(
         room=ctx.room,
         agent=KairosVoiceAssistant(),
-        room_options=room_opts,
     )
 
     await session.generate_reply(
-        instructions="Saluda al cliente cálidamente en español. Di algo como: "
-                     "'Hola, soy tu asistente de voz KAIROS. ¿En qué puedo ayudarte hoy?'",
+        instructions="Saluda al cliente cálidamente en español. Di 'Kairos' como una palabra, no deletrees. "
+                     "Di: 'Hola, soy tu asistente de voz Kairos. ¿En qué puedo ayudarte hoy?'",
     )
+
+    # Conversation loop — keep listening and responding
+    while True:
+        logger.info("Waiting for user input...")
+        resp = await session.generate_reply(
+            instructions="Responde al cliente de forma natural y conversacional. "
+                         "Mantén respuestas de 2-3 oraciones. "
+                         "Si el cliente se despide, despídete cordialmente.",
+        )
+        if resp is None:
+            break
+        logger.info("Agent responded, listening again...")
 
 
 if __name__ == "__main__":

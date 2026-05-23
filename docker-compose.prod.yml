@@ -65,9 +65,9 @@ services:
     command: --config /etc/livekit.yaml --node-ip=95.217.217.222
     ports:
       - "7880:7880"
-    expose:
-      - "7881"
-      - "7882"
+      - "7881:7881"
+      - "7882:7882/udp"
+    expose: []
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     networks: [kairos_net]

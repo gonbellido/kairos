@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/livekit-client@1/dist/livekit-client.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@1.15/dist/livekit-client.umd.min.js"></script>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -353,9 +353,7 @@
 
     <!-- Input area (text mode) -->
     <div class="input-area">
-        <button class="mic-btn" id="mic-quick" onclick="openVoiceMode()" title="Hablar">🎤</button>
-        <button class="mic-btn" id="lk-call-btn" onclick="toggleLiveKitCall()" title="Llamada de voz IA"
-                style="font-size:15px;background:var(--teal-muted);border-color:var(--teal);color:var(--teal);">📞</button>
+        <button class="mic-btn" id="mic-quick" onclick="toggleLiveKitCall()" title="Llamada de voz IA">🎤</button>
         <textarea
             id="msg-input"
             class="text-input"
@@ -425,10 +423,6 @@ const voiceTranscript = document.getElementById('voice-transcript');
 
 // ── State ──
 let isSending = false;
-let voiceActive = false;
-let recognition = null;
-let isListening = false;
-let isSpeaking = false;
 
 // ── Message rendering ──
 function now() {
@@ -630,19 +624,11 @@ sendBtn.addEventListener('click', () => sendMessage(msgInput.value));
 
 // ── Voice overlay ──
 function openVoiceMode() {
-    voiceActive = true;
-    voiceOverlay.classList.add('active');
-    setVoiceState('idle');
-    // Auto-start listening on open
-    setTimeout(startListening, 400);
+    toggleLiveKitCall();
 }
 
 function closeVoiceMode() {
-    stopListening();
-    stopSpeaking();
-    voiceActive = false;
-    voiceOverlay.classList.remove('active', 'listening', 'speaking', 'processing');
-    voiceTranscript.textContent = '';
+    disconnectLiveKit();
 }
 
 function toggleListening() {
@@ -675,160 +661,52 @@ function setVoiceState(state) {
     }
 }
 
-// ── Web Speech API (STT) ──
+// ── Speech recognition (browser native) ──
 function startListening() {
     if (isSpeaking) return;
-
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-        voiceStatusText.textContent = 'Tu navegador no soporta voz. Usa Chrome o Edge.';
+    isListening = true;
+    voiceOverlay.classList.add('listening');
+    voiceStatusText.textContent = 'Escuchando...';
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        voiceStatusText.textContent = 'No soportado';
+        isListening = false;
         return;
     }
-
-    if (recognition) {
-        try { recognition.abort(); } catch(e) {}
-    }
-
-    recognition = new SR();
+    const recognition = new SpeechRecognition();
     recognition.lang = 'es-ES';
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => { isListening = true; setVoiceState('listening'); voiceTranscript.textContent = ''; };
-
     recognition.onresult = (e) => {
-        let interim = '';
         let final = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
+        for (let i = e.resultIndex; i < e.results.length; i++)
             if (e.results[i].isFinal) final += e.results[i][0].transcript;
-            else interim += e.results[i][0].transcript;
-        }
-        voiceTranscript.textContent = final || interim;
-        if (final) {
-            isListening = false;
-            sendMessageSync(final.trim());
-        }
+        if (final) { isListening = false; sendMessageSync(final.trim()); }
     };
-
-    recognition.onerror = (e) => {
-        isListening = false;
-        if (e.error === 'not-allowed') {
-            voiceStatusText.textContent = 'Micrófono bloqueado. Permite acceso en la configuración del sitio.';
-            return;
-        }
-        if (e.error === 'no-speech' && voiceActive && !isSpeaking) {
-            setTimeout(() => { if (voiceActive && !isSpeaking) startListening(); }, 500);
-        }
-    };
-
-    recognition.onend = () => {
-        isListening = false;
-        if (voiceActive && !isSpeaking) {
-            // Slight delay so state machine settles
-            setTimeout(() => { if (voiceActive && !isSpeaking) startListening(); }, 600);
-        }
-    };
-
-    try { recognition.start(); }
-    catch(e) { voiceStatusText.textContent = 'Error al iniciar micrófono: ' + e.message; }
+    recognition.onend = () => { isListening = false; if (isSpeaking) return; setTimeout(startListening, 500); };
+    try { recognition.start(); } catch(e) { voiceStatusText.textContent = 'Error: ' + e.message; }
 }
-
-function stopListening() {
-    isListening = false;
-    try { recognition?.abort(); } catch(e) {}
-    recognition = null;
-    if (!isSpeaking) setVoiceState('idle');
-}
-
-// ── TTS (browser native + Cartesia fallback) ──
-let cartesiaAvailable = null;
-
+function stopListening() { isListening = false; try { recognition?.abort(); } catch(e) {} }
 async function speak(text) {
     isSpeaking = true;
-    setVoiceState('speaking');
-    voiceTranscript.textContent = '';
-
-    // Try Cartesia first (if available)
-    if (cartesiaAvailable !== false) {
-        try {
-            const res = await fetch('/api/v1/voice/tts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text })
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.ok && data.audio) {
-                    cartesiaAvailable = true;
-                    await playBase64Audio(data.audio);
-                    return;
-                }
-            }
-            cartesiaAvailable = false;
-        } catch(e) { cartesiaAvailable = false; }
-    }
-
-    // Browser TTS fallback
-    browserSpeak(text);
+    voiceOverlay.classList.add('speaking');
+    voiceStatusText.textContent = 'Respondiendo...';
+    try {
+        const r = await fetch('/api/v1/voice/tts', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text}) });
+        if (r.ok) { const d = await r.json(); if (d.ok && d.audio) await playBase64Audio(d.audio); }
+    } catch(e) {}
+    isSpeaking = false;
+    if (voiceActive) { voiceOverlay.classList.remove('speaking'); startListening(); }
 }
-
 async function playBase64Audio(b64) {
-    return new Promise((resolve) => {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            const bytes = atob(b64);
-            const buf = new ArrayBuffer(bytes.length);
-            const arr = new Uint8Array(buf);
-            for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-            ctx.decodeAudioData(buf.slice(0)).then(audioBuf => {
-                const src = ctx.createBufferSource();
-                src.buffer = audioBuf;
-                src.connect(ctx.destination);
-                src.onended = () => {
-                    ctx.close();
-                    onSpeakEnd();
-                    resolve();
-                };
-                src.start(0);
-            }).catch(() => { ctx.close(); resolve(); onSpeakEnd(); });
-        } catch(e) { onSpeakEnd(); resolve(); }
-    });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const bytes = atob(b64); const buf = new ArrayBuffer(bytes.length);
+    new Uint8Array(buf).set([...bytes].map(c => c.charCodeAt(0)));
+    const audioBuf = await ctx.decodeAudioData(buf);
+    const src = ctx.createBufferSource(); src.buffer = audioBuf; src.connect(ctx.destination);
+    return new Promise(resolve => { src.onended = resolve; src.start(0); });
 }
-
-function browserSpeak(text) {
-    if (!window.speechSynthesis) { onSpeakEnd(); return; }
-    window.speechSynthesis.cancel();
-    const utt = new SpeechSynthesisUtterance(text);
-    utt.lang = 'es-ES';
-    utt.rate = 1.0;
-    utt.pitch = 1.0;
-
-    // Prefer a Spanish female voice if available
-    const voices = window.speechSynthesis.getVoices();
-    const spanish = voices.find(v => v.lang.startsWith('es') && v.name.toLowerCase().includes('female'))
-                 || voices.find(v => v.lang.startsWith('es'));
-    if (spanish) utt.voice = spanish;
-
-    utt.onend = () => onSpeakEnd();
-    utt.onerror = () => onSpeakEnd();
-    window.speechSynthesis.speak(utt);
-}
-
-function stopSpeaking() {
-    window.speechSynthesis?.cancel();
-    isSpeaking = false;
-}
-
-function onSpeakEnd() {
-    isSpeaking = false;
-    if (voiceActive) {
-        setVoiceState('listening');
-        startListening();
-    }
-}
-
-// Load voices on first interaction (browsers require this)
+function stopSpeaking() { isSpeaking = false; }
 window.speechSynthesis?.addEventListener('voiceschanged', () => {});
 
 // ── LiveKit Voice Call ──
