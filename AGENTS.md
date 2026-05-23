@@ -150,8 +150,13 @@ async def entrypoint(ctx: JobContext):
         room_input_options=RoomInputOptions(audio_enabled=True, close_on_disconnect=False),
         room_output_options=RoomOutputOptions(audio_enabled=True, transcription_enabled=True),
     )
+    # Filler: LLM de LiveKit responde rápido mientras KAIROS procesa el journey
+    # KAIROS entrega la respuesta real que interrumpe al filler
+    @session.on("user_input_transcribed")
+    def _(ev):
+        if ev.is_final and ev.transcript.strip():
+            asyncio.create_task(kairos_respond(client_id, ev.transcript.strip()))
     await session.generate_reply(instructions="Saluda...")
-    # Sin loop — AgentSession auto-responde vía transcripción
 ```
 
 ### Puntos críticos (debugging histórico)
@@ -159,10 +164,11 @@ async def entrypoint(ctx: JobContext):
 2. **`ctx.connect()` es obligatorio** — sin esto el agente no recibe tracks de audio
 3. **`setMicrophoneEnabled(true)` en el JS** — el browser no publica mic automáticamente
 4. **`transcription_enabled=True`** — necesario para que STT → LLM → TTS funcione
-5. **Eventos de debug**: `session.on("user_input_transcribed")`, `room.on("track_subscribed")`, `room.on("participant_connected")`
-6. **LiveKit UDP ports**: 7882/udp debe estar expuesto en el host y abierto en firewall
-7. **`use_external_ip: true`** + `--node-ip=IP_PUBLICA` — necesario para ICE candidates correctos
-8. **Hairpin NAT**: el agente dentro de Docker necesita `extra_hosts` o iptables para conectar a IP pública
+5. **`Agent.__init__()` no acepta string posicional** — usar `Agent.__init__(self, instructions="...")` o subclase
+6. **Eventos de debug**: `session.on("user_input_transcribed")`, `room.on("track_subscribed")`, `room.on("participant_connected")`
+7. **LiveKit UDP ports**: 7882/udp debe estar expuesto en el host y abierto en firewall
+8. **`use_external_ip: true`** + `--node-ip=IP_PUBLICA` — necesario para ICE candidates correctos
+9. **Hairpin NAT**: el agente dentro de Docker necesita `extra_hosts` o iptables para conectar a IP pública
 
 ## Servicios
 | Servicio | Puerto interno | Healthcheck |

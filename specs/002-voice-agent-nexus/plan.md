@@ -27,6 +27,19 @@ Antes de cualquier feature nuevo, el sistema de recolección de datos debe funci
 ### Phase 3 — Coach Knowledge Hub ✅
 ### Phase 4 — Emotional TTS ✅
 
+### Voice Journey System (additional)
+- `channel` field en JourneyModel (text/voice/both) ✅
+- `voice_default_journey_id` en CoachModel ✅
+- Voice journey clonado y adaptado para voz ✅
+- Admin UI: selector de journey de texto y voz ✅
+- Filler LLM + KAIROS pipeline mix ✅
+
+### Phase 0 — Universal Data Collection ✅
+### Phase 1 — LiveKit Agent Pipeline ✅
+### Phase 2 — LangGraph Swarm ✅  
+### Phase 3 — Coach Knowledge Hub ✅
+### Phase 4 — Emotional TTS ✅
+
 ## Original Plan (reference)
 
 ### Phase 1 — LiveKit Agent Pipeline (US1)

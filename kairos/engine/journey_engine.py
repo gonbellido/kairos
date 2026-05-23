@@ -944,6 +944,7 @@ class JourneyEngine:
         return {"id": j.id, "coach_id": j.coach_id, "name": j.name, "description": j.description,
                 "objective": j.objective, "profile_type": j.profile_type, "language": j.language,
                 "status": j.status, "version": getattr(j, "version", 1),
+                "channel": getattr(j, "channel", "text") or "text",
                 "tag_mappings": getattr(j, "tag_mappings", {}) or {},
                 "created_at": j.created_at.isoformat() if j.created_at else ""}
 
