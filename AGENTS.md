@@ -132,6 +132,14 @@ keys:
   API_KEY: API_SECRET            # ≥32 chars cada uno
 ```
 
+### Cartesia TTS: Configuración de idioma
+```python
+cartesia.TTS(model="sonic-2", voice="...", language="es", api_key="...")
+```
+- `model`: usar `sonic-2` (multilingüe). NO `sonic-english`
+- `language`: `"es"` para español — sin esto, aplica reglas fonéticas inglesas
+- `voice`: idealmente una voz nativa ES o multilingüe
+
 ### Arquitectura de conexión
 ```
 Browser ──wss://api.ether.care/livekit──► Cloudflare ──► nginx:80 ──► livekit:7880
