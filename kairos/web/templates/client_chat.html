@@ -714,44 +714,89 @@ let lkRoom = null;
 let lkConnected = false;
 
 async function toggleLiveKitCall() {
-    const btn = document.getElementById('lk-call-btn');
+    const overlay = document.getElementById('voice-overlay');
+    const statusText = document.getElementById('voice-status-text');
+    const transcript = document.getElementById('voice-transcript');
+    const micBtn = document.getElementById('voice-mic-btn');
+    if (!overlay || !statusText || !transcript || !micBtn) return;
+
     if (lkConnected) {
         await disconnectLiveKit();
-        btn.textContent = '📞';
-        btn.style.background = 'var(--teal-muted)';
+        overlay.classList.remove('active');
         return;
     }
-    btn.textContent = '⏳';
-    btn.disabled = true;
+
+    overlay.classList.add('active');
+    setVoiceState('processing');
+    statusText.textContent = 'Conectando...';
+    transcript.textContent = '';
+    micBtn.textContent = '⏳';
+
     try {
         const r = await fetch('/api/v1/voice/token');
         const d = await r.json();
         console.log('[LK] Token response:', d);
         if (!d.ok) {
-            alert('Voz no disponible: ' + (d.error || 'error') + '\nURL: ' + (d.url || '?'));
-            btn.textContent = '📞';
-            btn.disabled = false;
+            statusText.textContent = 'Error: ' + (d.error || 'token');
+            micBtn.textContent = '🎤';
+            setTimeout(() => overlay.classList.remove('active'), 2000);
             return;
         }
-        console.log('[LK] Connecting to:', d.url, 'room:', d.room);
-        try {
-            await connectLiveKit(d.url, d.token, d.room);
-            console.log('[LK] Connected successfully');
-            btn.textContent = '🔴';
-            btn.style.background = 'rgba(239,68,68,0.2)';
-            btn.style.borderColor = '#ef4444';
-            btn.style.color = '#ef4444';
-        } catch (connErr) {
-            console.error('[LK] Connection error:', connErr);
-            alert('Error de conexión: ' + connErr.message + '\nURL: ' + d.url + '\nRoom: ' + d.room);
-            btn.textContent = '📞';
-        }
+
+        statusText.textContent = 'Conectando al agente de voz...';
+
+        const Room = LivekitClient.Room;
+        const room = new Room({
+            adaptiveStream: true,
+            audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+
+        room.on(LivekitClient.RoomEvent.TrackSubscribed, (track) => {
+            if (track.kind === 'audio') {
+                track.attach();
+                setVoiceState('speaking');
+                statusText.textContent = 'El agente está hablando...';
+            }
+        });
+
+        room.on(LivekitClient.RoomEvent.Disconnected, () => {
+            lkConnected = false;
+            statusText.textContent = 'Llamada finalizada';
+            micBtn.textContent = '🎤';
+            setTimeout(() => overlay.classList.remove('active'), 1500);
+        });
+
+        room.on(LivekitClient.RoomEvent.ActiveSpeakersChanged, (speakers) => {
+            const isAgent = speakers.some(s => !s.identity.startsWith('client_'));
+            if (isAgent) { setVoiceState('speaking'); statusText.textContent = 'El agente está hablando...'; }
+            else if (lkConnected) { setVoiceState('listening'); statusText.textContent = 'Escuchando...'; }
+        });
+
+        await room.connect(d.url, d.token);
+        lkRoom = room;
+        lkConnected = true;
+        micBtn.textContent = '🔴';
+        statusText.textContent = 'Conectado — hablá cuando quieras';
+        setVoiceState('listening');
+        transcript.textContent = 'Agente de voz activo';
     } catch (e) {
-        console.error('[LK] Fetch error:', e);
-        alert('Error al obtener token: ' + e.message);
-        btn.textContent = '📞';
+        console.error('[LK] Error:', e);
+        statusText.textContent = 'Error: ' + e.message;
+        micBtn.textContent = '🎤';
+        setTimeout(() => overlay.classList.remove('active'), 3000);
     }
-    btn.disabled = false;
+}
+
+async function connectLiveKit(url, token, roomName) {
+    const Room = LivekitClient.Room;
+    const room = new Room({
+        adaptiveStream: true,
+        audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+    room.on(LivekitClient.RoomEvent.Disconnected, () => { lkConnected = false; });
+    await room.connect(url, token);
+    lkRoom = room;
+    lkConnected = true;
 }
 
 async function connectLiveKit(url, token, roomName) {
