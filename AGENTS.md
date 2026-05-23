@@ -121,6 +121,49 @@ voice = ["livekit-agents>=1.5", "livekit-plugins-cartesia", "livekit-plugins-sil
          "livekit-plugins-deepgram", "livekit-plugins-openai", "livekit-plugins-ai-coustics"]
 ```
 
+### LiveKit Config (livekit.yaml)
+```yaml
+port: 7880
+rtc:
+  use_external_ip: true          # requiere --node-ip=IP_PUBLICA
+  tcp_port: 7881
+  udp_port: 7882
+keys:
+  API_KEY: API_SECRET            # ≥32 chars cada uno
+```
+
+### Arquitectura de conexión
+```
+Browser ──wss://api.ether.care/livekit──► Cloudflare ──► nginx:80 ──► livekit:7880
+Browser ──udp:7882──► LiveKit server (media directa, no pasa por nginx)
+Voice Agent (Docker) ──ws://livekit:7880──► LiveKit server (señalización interna)
+```
+
+### Patrón correcto del voice agent (entrypoint)
+```python
+async def entrypoint(ctx: JobContext):
+    await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
+    session = AgentSession(stt=deepgram.STT(...), llm=openai.LLM(...),
+                           tts=cartesia.TTS(...), vad=silero.VAD.load())
+    await session.start(
+        room=ctx.room, agent=agent,
+        room_input_options=RoomInputOptions(audio_enabled=True, close_on_disconnect=False),
+        room_output_options=RoomOutputOptions(audio_enabled=True, transcription_enabled=True),
+    )
+    await session.generate_reply(instructions="Saluda...")
+    # Sin loop — AgentSession auto-responde vía transcripción
+```
+
+### Puntos críticos (debugging histórico)
+1. **`room_options` NO existe** como parámetro de `session.start()` — usar `room_input_options` y `room_output_options`
+2. **`ctx.connect()` es obligatorio** — sin esto el agente no recibe tracks de audio
+3. **`setMicrophoneEnabled(true)` en el JS** — el browser no publica mic automáticamente
+4. **`transcription_enabled=True`** — necesario para que STT → LLM → TTS funcione
+5. **Eventos de debug**: `session.on("user_input_transcribed")`, `room.on("track_subscribed")`, `room.on("participant_connected")`
+6. **LiveKit UDP ports**: 7882/udp debe estar expuesto en el host y abierto en firewall
+7. **`use_external_ip: true`** + `--node-ip=IP_PUBLICA` — necesario para ICE candidates correctos
+8. **Hairpin NAT**: el agente dentro de Docker necesita `extra_hosts` o iptables para conectar a IP pública
+
 ## Servicios
 | Servicio | Puerto interno | Healthcheck |
 |----------|---------------|-------------|
