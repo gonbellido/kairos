@@ -1,6 +1,6 @@
-"""LiveKit Voice Agent — STT (DeepGram) + LLM (DeepSeek/GPT) + TTS (Cartesia Sonic-3)
-   with VAD (Silero), turn detection, noise cancellation, and KAIROS pipeline integration."""
+"""LiveKit Voice Agent — simple voice coaching assistant using KAIROS pipeline."""
 
+import asyncio
 import logging
 import os
 import sys
@@ -18,13 +18,13 @@ server = AgentServer()
 class KairosVoiceAssistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""Eres un asistente de coaching de voz de KAIROS, cálido y empático.
-Ayudas a clientes con crecimiento personal, apoyo emocional y orientación.
-Mantén respuestas concisas (2-3 oraciones máximo), naturales y conversacionales.
-No uses emojis, asteriscos, hashtags ni formato markdown.
-Habla como un coach humano, no como un robot.
-Si el cliente parece frustrado o triste, sé especialmente empático.
-Si el cliente está avanzando bien, sé alentador.""",
+            instructions=(
+                "Eres un asistente de coaching de voz de KAIROS, cálido y empático. "
+                "Ayudas a clientes con crecimiento personal, apoyo emocional y orientación. "
+                "Mantén respuestas MUY cortas (1-2 oraciones), naturales y conversacionales. "
+                "Habla como un coach humano en una conversación de voz, no como un robot. "
+                "NO uses JSON, markdown, emojis ni formato especial. Solo texto plano natural."
+            )
         )
 
 
@@ -62,21 +62,12 @@ async def voice_session(ctx: agents.JobContext):
     )
 
     await session.generate_reply(
-        instructions="Saluda al cliente cálidamente en español. Di 'Kairos' como una palabra, no deletrees. "
-                     "Di: 'Hola, soy tu asistente de voz Kairos. ¿En qué puedo ayudarte hoy?'",
+        instructions="Saluda al cliente en español. Di 'Kairos' como una palabra. "
+                     "Di: 'Hola, soy tu asistente de voz Kairos. ¿En qué puedo ayudarte?'",
     )
 
-    # Conversation loop — keep listening and responding
-    while True:
-        logger.info("Waiting for user input...")
-        resp = await session.generate_reply(
-            instructions="Responde al cliente de forma natural y conversacional. "
-                         "Mantén respuestas de 2-3 oraciones. "
-                         "Si el cliente se despide, despídete cordialmente.",
-        )
-        if resp is None:
-            break
-        logger.info("Agent responded, listening again...")
+    logger.info("Voice session active for client=%s", client_id)
+    await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
