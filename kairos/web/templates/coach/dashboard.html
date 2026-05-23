@@ -5,29 +5,29 @@
         <h1>Clientes</h1>
     </div>
     <div class="page-header-right">
-        <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary btn-sm">+ Nuevo cliente</button>
+        <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary btn-sm">+ {{ t("new_client") }}</button>
     </div>
 </div>
 
 <!-- Search & Filters -->
 <div class="card mb-4" style="padding: var(--space-3) var(--space-4);">
     <div class="flex items-center gap-3 flex-wrap">
-        <input type="text" id="search-input" class="input" placeholder="Buscar por nombre..." style="max-width: 250px;" oninput="filterTable()">
+        <input type="text" id="search-input" class="input" placeholder="{{ t("ui.search_placeholder", default="Buscar por nombre...") }}" style="max-width: 250px;" oninput="filterTable()">
         {% if coach.role == 'admin' %}
         <select id="filter-coach" class="input" style="max-width: 200px;" onchange="filterTable()">
-            <option value="">Todos los coaches</option>
+            <option value="">{{ t("ui.all_coaches", default="Todos los coaches") }}</option>
             {% for cid, cname in coach_map.items() %}
             <option value="{{ cname }}">{{ cname }}</option>
             {% endfor %}
         </select>
         {% endif %}
         <select id="filter-journey" class="input" style="max-width: 220px;" onchange="filterTable()">
-            <option value="">Todos los journeys</option>
+            <option value="">{{ t("ui.all_journeys", default="Todos los journeys") }}</option>
             {% for j in journeys %}
             <option value="{{ j.name }}">{{ j.name[:30] }}</option>
             {% endfor %}
         </select>
-        <span class="text-sm" style="color: var(--text-muted); margin-left: auto;" id="result-count">{{ clients|length }} clientes</span>
+        <span class="text-sm" style="color: var(--text-muted); margin-left: auto;" id="result-count">{{ clients|length }} {{ t("clients_count") }}</span>
     </div>
 </div>
 
@@ -35,21 +35,21 @@
 <div class="grid grid-4 mb-4">
     <div class="stat-card">
         <div class="stat-value">{{ clients|length }}</div>
-        <div class="stat-label">Clientes</div>
+        <div class="stat-label">{{ t("clients_count") }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ alerts_count|default(0) }}</div>
-        <div class="stat-label">Alertas activas</div>
+        <div class="stat-label">{{ t("alerts_active") }}</div>
     </div>
     <div class="stat-card">
         <div class="stat-value">{{ client_journeys|length }}</div>
-        <div class="stat-label">Con journey</div>
+        <div class="stat-label">{{ t("ui.with_journey", default="Con journey") }}</div>
     </div>
     <div class="stat-card">
         {% set total = namespace(n=0) %}
         {% for c in clients %}{% set total.n = total.n + c.historial.get('mensajes', 0) %}{% endfor %}
         <div class="stat-value">{{ total.n }}</div>
-        <div class="stat-label">Interacciones</div>
+        <div class="stat-label">{{ t("interactions") }}</div>
     </div>
 </div>
 
@@ -58,14 +58,14 @@
     <table class="table" id="client-table">
         <thead>
             <tr>
-                <th>Cliente</th>
+                <th>{{ t("client_name") }}</th>
                 {% if coach.role == 'admin' %}<th>Coach</th>{% endif %}
-                <th>Estado</th>
+                <th>{{ t("current_state") }}</th>
                 <th>Score</th>
                 <th>Journey</th>
-                <th>Progreso</th>
-                <th>Sesiones</th>
-                <th>Acceso</th>
+                <th>{{ t("ui.progress", default="Progreso") }}</th>
+                <th>{{ t("sessions") }}</th>
+                <th>{{ t("ui.access", default="Acceso") }}</th>
                 <th></th>
             </tr>
         </thead>
@@ -131,24 +131,24 @@
 {% if not clients %}
 <div class="empty-state">
     <div class="empty-state-icon">○</div>
-    <h2 style="margin-bottom: var(--space-2);">Sin clientes</h2>
-    <p class="empty-state-text">Crea tu primer cliente para empezar.</p>
-    <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary">+ Crear primer cliente</button>
+    <h2 style="margin-bottom: var(--space-2);">{{ t("no_clients_title") }}</h2>
+    <p class="empty-state-text">{{ t("no_clients_text") }}</p>
+    <button onclick="document.getElementById('client-modal').classList.remove('hidden')" class="btn btn-primary">+ {{ t("create_first_client") }}</button>
 </div>
 {% endif %}
 
 <!-- Create Modal -->
 <div id="client-modal" class="modal-overlay hidden">
     <div class="modal">
-        <div class="modal-header"><h2>Nuevo cliente</h2><button onclick="document.getElementById('client-modal').classList.add('hidden')" class="modal-close">&times;</button></div>
+        <div class="modal-header"><h2>{{ t("new_client") }}</h2><button onclick="document.getElementById('client-modal').classList.add('hidden')" class="modal-close">&times;</button></div>
         <form id="client-form">
-            <div class="form-group"><label class="label">Nombre</label><input type="text" name="nombre" class="input" required></div>
-            <div class="form-group"><label class="label">Contexto</label><textarea name="contexto" class="input" rows="2"></textarea></div>
+            <div class="form-group"><label class="label">{{ t("client_name") }}</label><input type="text" name="nombre" class="input" required></div>
+            <div class="form-group"><label class="label">{{ t("client_context") }}</label><textarea name="contexto" class="input" rows="2"></textarea></div>
             <div class="flex gap-3">
-                <div class="form-group flex-1"><label class="label">Edad</label><input type="number" name="edad" class="input"></div>
-                <div class="form-group flex-1"><label class="label">Perfil</label><select name="profile_id" class="input"><option value="coaching">Coaching</option><option value="comercial">Comercial</option><option value="financiero">Financiero</option></select></div>
+                <div class="form-group flex-1"><label class="label">{{ t("client_age") }}</label><input type="number" name="edad" class="input"></div>
+                <div class="form-group flex-1"><label class="label">{{ t("client_profile") }}</label><select name="profile_id" class="input"><option value="coaching">Coaching</option><option value="comercial">Comercial</option><option value="financiero">Financiero</option></select></div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-primary">Crear</button><button type="button" onclick="document.getElementById('client-modal').classList.add('hidden')" class="btn btn-secondary">Cancelar</button></div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">{{ t("create_client") }}</button><button type="button" onclick="document.getElementById('client-modal').classList.add('hidden')" class="btn btn-secondary">{{ t("cancel") }}</button></div>
         </form>
     </div>
 </div>

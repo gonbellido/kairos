@@ -32,13 +32,13 @@
                 <div class="text-sm" style="color: var(--text-muted); margin-top: 2px;">{{ item[2] }}</div>
             </div>
             {% endfor %}
-            <button type="submit" class="btn btn-primary" style="margin-top: 12px;">Guardar impronta</button>
+            <button type="submit" class="btn btn-primary" style="margin-top: 12px;">{{ t("ui.save_imprint", default="Guardar impronta") }}</button>
             <span id="save-status" class="text-sm" style="margin-left: 12px;"></span>
         </form>
     </div>
 
     <div class="card" style="border-left: 3px solid var(--accent-indigo);">
-        <h3 class="mb-2">¿Cómo funciona?</h3>
+        <h3 class="mb-2">{{ t("ui.how_it_works", default="¿Cómo funciona?") }}</h3>
         <p class="body">Cada vez que un cliente habla con tu agente, el sistema incluye estos valores en el prompt. El LLM adapta su tono, nivel de directividad y estilo según esta configuración.</p>
         <p class="body mt-2">Ejemplo: con <strong>Directividad 9/10</strong>, el agente dirá "Haz esto". Con <strong>Directividad 2/10</strong>, preguntará "¿Has considerado...?"</p>
     </div>

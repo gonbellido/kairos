@@ -357,7 +357,7 @@
         <textarea
             id="msg-input"
             class="text-input"
-            placeholder="Escribe tu mensaje..."
+            placeholder="{{ t("chat_placeholder") }}"
             rows="1"
             autofocus
         ></textarea>
@@ -374,7 +374,7 @@
 <div class="voice-overlay" id="voice-overlay">
     <button class="voice-close" onclick="closeVoiceMode()">✕ Cerrar</button>
 
-    <div class="voice-status-text" id="voice-status-text">Toca el micrófono para hablar</div>
+    <div class="voice-status-text" id="voice-status-text">{{ t("ui.tap_mic", default="Toca el micrófono para hablar") }}</div>
 
     <div class="voice-mic-wrap">
         <div class="voice-mic-ring"></div>
@@ -674,7 +674,7 @@ function startListening() {
         return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = 'es-ES';
+    recognition.lang = '{{ "es-ES" if lang == "es" else "en-US" }}';
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.onresult = (e) => {

@@ -24,7 +24,7 @@
     </div>
 </div>
 
-<div class="tabs mb-4"><button class="tab active" onclick="showTab('profile',this)">👤 Perfil</button><button class="tab" onclick="showTab('progress',this)">📊 Progreso</button><button class="tab" onclick="showTab('sessions',this)">📋 Sesiones</button><button class="tab" onclick="showTab('docs',this)">📎 Docs</button></div>
+<div class="tabs mb-4"><button class="tab active" onclick="showTab('profile',this)">👤 {{ t("settings_profile") }}</button><button class="tab" onclick="showTab('progress',this)">📊 Progreso</button><button class="tab" onclick="showTab('sessions',this)">📋 Sesiones</button><button class="tab" onclick="showTab('docs',this)">📎 Docs</button></div>
 
 <div id="tab-profile" class="tab-content">
 {% set pdata = client.metadata.get('profile_data', {}) or {} %}
@@ -75,33 +75,33 @@
 </div>
 {% endif %}
 <div class="grid grid-2 gap-3">
-<div class="form-group"><label class="label">Nombre</label><input id="cp-nombre" class="input" value="{{ client.nombre }}"></div>
-<div class="form-group"><label class="label">Apellidos</label><input id="cp-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
-<div class="form-group"><label class="label">Email</label><input id="cp-email" class="input" value="{{ pdata.get('email','') }}"></div>
-<div class="form-group"><label class="label">Teléfono</label><input id="cp-phone" class="input" value="{{ pdata.get('phone','') }}"></div>
-<div class="form-group"><label class="label">Profesión</label><input id="cp-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
-<div class="form-group"><label class="label">Empresa</label><input id="cp-company" class="input" value="{{ pdata.get('company','') }}"></div>
-<div class="form-group"><label class="label">Sector</label><select id="cp-industry" class="input">{% for i in ['Tecnología','Finanzas','Salud','Educación','Coaching','Consultoría','Otro'] %}<option value="{{ i }}" {% if pdata.get('industry','')==i %}selected{% endif %}>{{ i }}</option>{% endfor %}</select></div>
-<div class="form-group"><label class="label">Ubicación</label><input id="cp-location" class="input" value="{{ pdata.get('location','') }}"></div></div>
-<div class="form-group mt-3"><label class="label">Bio</label><textarea id="cp-bio" class="input" rows="3" maxlength="200">{{ pdata.get('bio','') }}</textarea></div>
+<div class="form-group"><label class="label">{{ t("client_name") }}</label><input id="cp-nombre" class="input" value="{{ client.nombre }}"></div>
+<div class="form-group"><label class="label">{{ t("ui.surname", default="Apellidos") }}</label><input id="cp-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
+<div class="form-group"><label class="label">{{ t("login_email") }}</label><input id="cp-email" class="input" value="{{ pdata.get('email','') }}"></div>
+<div class="form-group"><label class="label">{{ t("ui.phone", default="Teléfono") }}</label><input id="cp-phone" class="input" value="{{ pdata.get('phone','') }}"></div>
+<div class="form-group"><label class="label">{{ t("prompts.settings_job_title") }}</label><input id="cp-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
+<div class="form-group"><label class="label">{{ t("prompts.settings_company") }}</label><input id="cp-company" class="input" value="{{ pdata.get('company','') }}"></div>
+<div class="form-group"><label class="label">{{ t("prompts.settings_industry") }}</label><select id="cp-industry" class="input">{% for i in ['Tecnología','Finanzas','Salud','Educación','Coaching','Consultoría','Otro'] %}<option value="{{ i }}" {% if pdata.get('industry','')==i %}selected{% endif %}>{{ i }}</option>{% endfor %}</select></div>
+<div class="form-group"><label class="label">{{ t("prompts.settings_location") }}</label><input id="cp-location" class="input" value="{{ pdata.get('location','') }}"></div></div>
+<div class="form-group mt-3"><label class="label">{{ t("ui.bio", default="Bio") }}</label><textarea id="cp-bio" class="input" rows="3" maxlength="200">{{ pdata.get('bio','') }}</textarea></div>
 <div class="grid grid-2 gap-3 mt-3"><div class="form-group"><label class="label">LinkedIn</label><input id="cp-linkedin" class="input" value="{{ pdata.get('linkedin','') }}"></div><div class="form-group"><label class="label">Instagram</label><input id="cp-instagram" class="input" value="{{ pdata.get('instagram','') }}"></div></div>
 </div></div>
 
 <div id="tab-progress" class="tab-content hidden">
 {% if client.metadata.get('journey_data') %}
 <div class="card mb-4" style="border-left: 4px solid var(--accent-teal);">
-    <h3 class="mb-3">🧭 Progreso del Journey</h3>
+    <h3 class="mb-3">🧭 {{ t("ui.journey_progress", default="Progreso del Journey") }}</h3>
     <div class="grid grid-3 gap-3">
         <div>
-            <div class="text-sm text-secondary">Fase Actual</div>
+            <div class="text-sm text-secondary">{{ t("ui.current_phase") }}</div>
             <div class="font-medium">{{ (client.metadata.journey_data.get('phase_name') or '—') }}</div>
         </div>
         <div>
-            <div class="text-sm text-secondary">Agente</div>
+            <div class="text-sm text-secondary">{{ t("ui.agent") }}</div>
             <div class="font-medium">{{ (client.metadata.journey_data.get('agent_name') or '—') }}</div>
         </div>
         <div>
-            <div class="text-sm text-secondary">Progreso</div>
+            <div class="text-sm text-secondary">{{ t("ui.progress") }}</div>
             <div class="font-medium text-teal">{{ (client.metadata.journey_data.get('progress_pct', 0))|int }}%</div>
         </div>
     </div>
@@ -132,18 +132,18 @@
 </div>
 {% endif %}
 <div class="grid grid-2 gap-4">
-<div class="card"><h3 class="mb-3">Estado actual</h3>{% set s = client.estado_actual %}
+<div class="card"><h3 class="mb-3">{{ t("current_state") }}</h3>{% set s = client.estado_actual %}
 <div class="flex justify-between text-sm mb-3"><span class="text-secondary">Emocional</span><span style="color:var(--text-primary);font-weight:500">{{ s.emocional }}</span></div>
 {% for label, key in [('Claridad','claridad'),('Energía','energia'),('Resistencia','resistencia')] %}
 <div class="mb-3"><div class="flex justify-between text-sm"><span class="text-secondary">{{ label }}</span><span class="text-mono">{{ (s[key]*100)|int }}%</span></div>
 <div class="progress-mini mt-1"><div class="progress-mini-fill {% if s[key]>0.6 %}high{% elif s[key]>0.3 %}mid{% else %}low{% endif %}" style="width:{{ s[key]*100 }}%"></div></div></div>{% endfor %}</div>
-<div class="card"><h3 class="mb-3">Señales</h3><div class="grid grid-2 gap-3 text-center">
+<div class="card"><h3 class="mb-3">{{ t("progress_signals") }}</h3><div class="grid grid-2 gap-3 text-center">
 {% for label, val in [('Claridad',client.progreso.senales.claridad),('Acción',client.progreso.senales.accion),('Apertura',client.progreso.senales.apertura),('Consistencia',client.progreso.senales.consistencia)] %}
 <div><div class="score-value {% if val>0.6 %}score-high{% elif val>0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size:18px">{{ (val*100)|int }}%</div><div class="text-sm">{{ label }}</div></div>{% endfor %}</div>
 <div style="border-top:1px solid var(--border-subtle);padding-top:12px;margin-top:12px;text-align:center"><div class="text-sm">Score Global</div><div class="score-value {% if client.progreso.score_global>0.6 %}score-high{% elif client.progreso.score_global>0.3 %}score-mid{% else %}score-low{% endif %}" style="font-size:32px;font-weight:600">{{ (client.progreso.score_global*100)|int }}%</div></div></div>
-{% if client.objetivos %}<div class="card"><h3 class="mb-3">Objetivos</h3><ul style="list-style:none;display:flex;flex-direction:column;gap:8px">{% for obj in client.objetivos %}<li class="flex items-center gap-2 text-sm"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-teal);flex-shrink:0"></span>{{ obj.titulo }}</li>{% endfor %}</ul></div>{% endif %}
-{% if client.patrones_detectados %}<div class="card"><h3 class="mb-3">Patrones</h3><div class="flex flex-wrap gap-2">{% for pat in client.patrones_detectados %}<span class="badge badge-indigo">{{ pat.patron }} <span style="opacity:0.6">×{{ pat.frecuencia }}</span></span>{% endfor %}</div></div>{% endif %}
-{% if client.insights %}<div class="card"><h3 class="mb-3">Insights</h3><div class="flex flex-col gap-2">{% for ins in client.insights[-5:]|reverse %}<div class="alert alert-info" style="font-size:13px"><div>{{ ins.contenido }}</div><div class="text-sm mt-1">{{ ins.timestamp.strftime('%d/%m/%y') if ins.timestamp else '' }}</div></div>{% endfor %}</div></div>{% endif %}
+{% if client.objetivos %}<div class="card"><h3 class="mb-3">{{ t("objectives") }}</h3><ul style="list-style:none;display:flex;flex-direction:column;gap:8px">{% for obj in client.objetivos %}<li class="flex items-center gap-2 text-sm"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-teal);flex-shrink:0"></span>{{ obj.titulo }}</li>{% endfor %}</ul></div>{% endif %}
+{% if client.patrones_detectados %}<div class="card"><h3 class="mb-3">{{ t("patterns_detected") }}</h3><div class="flex flex-wrap gap-2">{% for pat in client.patrones_detectados %}<span class="badge badge-indigo">{{ pat.patron }} <span style="opacity:0.6">×{{ pat.frecuencia }}</span></span>{% endfor %}</div></div>{% endif %}
+{% if client.insights %}<div class="card"><h3 class="mb-3">{{ t("insights_detected") }}</h3><div class="flex flex-col gap-2">{% for ins in client.insights[-5:]|reverse %}<div class="alert alert-info" style="font-size:13px"><div>{{ ins.contenido }}</div><div class="text-sm mt-1">{{ ins.timestamp.strftime('%d/%m/%y') if ins.timestamp else '' }}</div></div>{% endfor %}</div></div>{% endif %}
 </div></div>
 
 <div id="tab-sessions" class="tab-content hidden">
@@ -154,7 +154,7 @@
 </div>
 
 <div id="tab-docs" class="tab-content hidden">
-<div class="card"><h3 class="mb-3">Subir material del cliente</h3><div class="drop-area" id="drop-area"><div style="font-size:32px;margin-bottom:8px;opacity:0.4">▣</div><p class="text-sm">Arrastra PDF, audio o documento aquí</p><p class="text-sm" style="opacity:0.6;margin-top:4px">o haz clic para seleccionar</p><input type="file" id="file-input" class="hidden" accept="audio/*,.txt,.pdf,.md,.csv,.json"></div><div id="upload-status" class="hidden text-sm mt-2" style="text-align:center"></div></div>
+<div class="card"><h3 class="mb-3">{{ t("upload_material") }}</h3><div class="drop-area" id="drop-area"><div style="font-size:32px;margin-bottom:8px;opacity:0.4">▣</div><p class="text-sm">{{ t("upload_drop_text") }}</p><p class="text-sm" style="opacity:0.6;margin-top:4px">{{ t("upload_drop_hint") }}</p><input type="file" id="file-input" class="hidden" accept="audio/*,.txt,.pdf,.md,.csv,.json"></div><div id="upload-status" class="hidden text-sm mt-2" style="text-align:center"></div></div>
 </div>
 
 <script>

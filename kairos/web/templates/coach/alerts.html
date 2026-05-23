@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Alertas</h1>
+        <h1>{{ t("alerts_title") }}</h1>
     </div>
 </div>
 
@@ -50,7 +50,7 @@
 {% else %}
 <div class="empty-state">
     <div class="empty-state-icon" style="color: var(--success);">◉</div>
-    <p class="empty-state-text">No hay alertas activas. Todo en orden.</p>
+    <p class="empty-state-text">{{ t("no_alerts") }}</p>
 </div>
 {% endif %}
 {% endblock %}

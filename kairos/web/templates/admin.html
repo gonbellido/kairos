@@ -2,12 +2,12 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Coaches</h1>
+        <h1>{{ t("admin_title") }}</h1>
     </div>
     <div class="page-header-right">
-        <a href="/admin/channels" class="btn btn-ghost btn-sm">Canales</a>
+        <a href="/admin/channels" class="btn btn-ghost btn-sm">{{ t("ui.channels", default="Canales") }}</a>
         <a href="/admin/prompts" class="btn btn-ghost btn-sm">Prompts</a>
-        <button onclick="openCreateModal()" class="btn btn-primary btn-sm">+ Nuevo coach</button>
+        <button onclick="openCreateModal()" class="btn btn-primary btn-sm">+ {{ t("admin_new_coach") }}</button>
     </div>
 </div>
 
@@ -15,13 +15,13 @@
     <table class="table">
         <thead>
             <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Plan</th>
-                <th>Idioma</th>
-                <th>Rol</th>
+                <th>{{ t("admin_name") }}</th>
+                <th>{{ t("admin_email") }}</th>
+                <th>{{ t("admin_plan") }}</th>
+                <th>{{ t("language") }}</th>
+                <th>{{ t("admin_role") }}</th>
                 <th>Journey</th>
-                <th>Creado</th>
+                <th>{{ t("admin_created") }}</th>
                 <th></th>
             </tr>
         </thead>
@@ -37,9 +37,9 @@
                 <td><span class="text-sm">{{ c.created_at[:10] if c.created_at else '' }}</span></td>
                 <td>
                     <div class="flex gap-1">
-                        <button onclick="openEditModal('{{ c.id }}', '{{ c.name }}', '{{ c.email }}', '{{ c.role }}', '{{ c.get('plan', 'free') }}', '{{ c.get('language', 'es') }}', '{{ c.get('default_journey_id', '') }}', '{{ c.get('voice_default_journey_id', '') }}')" class="btn btn-ghost btn-sm">Editar</button>
+                        <button onclick="openEditModal('{{ c.id }}', '{{ c.name }}', '{{ c.email }}', '{{ c.role }}', '{{ c.get('plan', 'free') }}', '{{ c.get('language', 'es') }}', '{{ c.get('default_journey_id', '') }}', '{{ c.get('voice_default_journey_id', '') }}')" class="btn btn-ghost btn-sm">{{ t("ui.edit") }}</button>
                         {% if c.role != 'admin' %}
-                        <button onclick="deleteCoach('{{ c.id }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
+                        <button onclick="deleteCoach('{{ c.id }}')" class="btn btn-ghost btn-sm text-danger">{{ t("admin_delete") }}</button>
                         {% endif %}
                     </div>
                 </td>
@@ -53,22 +53,22 @@
 <div id="coach-modal" class="modal-overlay hidden">
     <div class="modal">
         <div class="modal-header">
-            <h2 id="modal-title">Nuevo coach</h2>
+            <h2 id="modal-title">{{ t("admin_new_coach") }}</h2>
             <button onclick="closeModal()" class="modal-close">&times;</button>
         </div>
         <form id="coach-form">
             <input type="hidden" id="coach-id">
             <div class="form-group">
-                <label class="label" for="coach-name">Nombre</label>
+                <label class="label" for="coach-name">{{ t("admin_name") }}</label>
                 <input type="text" id="coach-name" class="input" required placeholder="Nombre completo">
             </div>
             <div class="form-group">
-                <label class="label" for="coach-email">Email</label>
+                <label class="label" for="coach-email">{{ t("admin_email") }}</label>
                 <input type="email" id="coach-email" class="input" required placeholder="email@ejemplo.com">
             </div>
             <div class="flex gap-3">
                 <div class="form-group flex-1">
-                    <label class="label" for="coach-plan">Plan</label>
+                    <label class="label" for="coach-plan">{{ t("admin_plan") }}</label>
                     <select id="coach-plan" class="input">
                         <option value="free">Free</option>
                         <option value="pro">Pro</option>
@@ -76,7 +76,7 @@
                     </select>
                 </div>
                 <div class="form-group flex-1">
-                    <label class="label" for="coach-language">Idioma</label>
+                    <label class="label" for="coach-language">{{ t("language") }}</label>
                     <select id="coach-language" class="input">
                         <option value="es">Español</option>
                         <option value="en">English</option>
@@ -106,8 +106,8 @@
                 <input type="password" id="coach-password" class="input" placeholder="••••••••">
             </div>
             <div class="modal-footer">
-                <button type="submit" class="btn btn-primary" id="modal-submit">Guardar</button>
-                <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancelar</button>
+                <button type="submit" class="btn btn-primary" id="modal-submit">{{ t("send") }}</button>
+                <button type="button" onclick="closeModal()" class="btn btn-secondary">{{ t("cancel") }}</button>
             </div>
         </form>
     </div>

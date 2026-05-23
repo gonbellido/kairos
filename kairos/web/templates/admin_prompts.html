@@ -5,8 +5,8 @@
         <div class="breadcrumb">
             <a href="/admin">← Admin</a>
         </div>
-        <h1>Gestión de Prompts</h1>
-        <p class="body" style="margin-top: var(--space-1);">Edita los prompts del sistema que controlan el comportamiento de cada agente</p>
+        <h1>{{ t("admin_prompts.title", default="Gestión de Prompts") }}</h1>
+        <p class="body" style="margin-top: var(--space-1);">{{ t("admin_prompts.subtitle", default="Edita los prompts del sistema que controlan el comportamiento de cada agente") }}</p>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
                 {% else %}
                 <span class="badge badge-neutral">default</span>
                 {% endif %}
-                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-ghost btn-sm" id="edit-btn-{{ p.agent }}">Editar</button>
+                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-ghost btn-sm" id="edit-btn-{{ p.agent }}">{{ t("ui.edit", default="Editar") }}</button>
                 {% if p.is_custom %}
                 <button onclick="resetPrompt('{{ p.agent }}')" class="btn btn-ghost btn-sm text-danger">Reset</button>
                 {% endif %}
@@ -51,8 +51,8 @@
                       style="min-height: 200px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5;"
             >{{ p.prompt_template }}</textarea>
             <div class="flex gap-2 mt-3">
-                <button onclick="savePrompt('{{ p.agent }}')" class="btn btn-primary btn-sm">Guardar</button>
-                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-secondary btn-sm">Cancelar</button>
+                <button onclick="savePrompt('{{ p.agent }}')" class="btn btn-primary btn-sm">{{ t("send") }}</button>
+                <button onclick="toggleEdit('{{ p.agent }}')" class="btn btn-secondary btn-sm">{{ t("cancel") }}</button>
             </div>
             <div id="status-{{ p.agent }}" class="hidden text-sm mt-2"></div>
         </div>

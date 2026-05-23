@@ -701,7 +701,20 @@ class JourneyEngine:
 ## Mensaje del cliente
 {message}
 """
+
+        # i18n: ensure agent responds in correct language
+        from kairos.engine.i18n import get_current_lang
+        active_lang = language or get_current_lang()
+        # Try to get locale from shared profile if possible
+        sp = cj_data.get('shared_profile', {}) or {}
+        if sp.get('locale'):
+            active_lang = sp['locale']
+
+        lang_name = 'Spanish' if active_lang == 'es' else 'English'
+        prompt += f'\n\nIMPORTANT: Respond always in {lang_name}.'
+
         return prompt
+
 
     async def validate_and_advance(self, client_id: str, llm_response: str, agent_data: dict = None) -> dict:
         """K3+K2: Parse JSON response, save structured data, apply tag transitions."""

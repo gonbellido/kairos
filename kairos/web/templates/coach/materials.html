@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Materiales del Coach</h1>
+        <h1>{{ t("materials_title") }}</h1>
     </div>
     <div class="page-header-right">
         <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
@@ -22,7 +22,7 @@
 <div id="materials-list" class="flex flex-col gap-2">
     <div id="empty-msg" class="empty-state">
         <div class="empty-state-icon">▥</div>
-        <p class="empty-state-text">No has subido materiales todavía.</p>
+        <p class="empty-state-text">{{ t("no_materials") }}</p>
         <button onclick="document.getElementById('upload-modal').classList.remove('hidden')"
                 class="btn btn-primary">
             + Subir primer material

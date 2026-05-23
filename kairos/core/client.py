@@ -60,6 +60,7 @@ class ClientProfile(BaseModel):
     id: str = ""
     coach_id: str = ""
     nombre: str = ""
+    locale: str = "es"
 
     metadata: dict = Field(default_factory=lambda: {"edad": None, "contexto": "", "notas": ""})
     objetivos: list[ClientObjective] = Field(default_factory=list)

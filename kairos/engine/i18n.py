@@ -2,6 +2,7 @@
 
 import json
 import logging
+import contextvars
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,9 @@ SUPPORTED_LANGS = {"es", "en"}
 DEFAULT_LANG = "es"
 
 I18N_DIR = Path(__file__).parent.parent / "i18n"
+
+# ContextVar to hold the current language for the request
+_current_lang = contextvars.ContextVar("current_lang", default=DEFAULT_LANG)
 
 
 class I18nEngine:
@@ -48,7 +52,12 @@ class I18nEngine:
         parts = key.split(".")
         node = self._translations.get("ui", {})
         for part in parts:
-            node = node.get(part, {}) if isinstance(node, dict) else node
+            if isinstance(node, dict):
+                node = node.get(part, {})
+            else:
+                node = {}
+                break
+
         if isinstance(node, str):
             result = node
         elif isinstance(node, dict):
@@ -68,7 +77,11 @@ class I18nEngine:
         parts = key.split(".")
         node = self._translations.get("prompts", {})
         for part in parts:
-            node = node.get(part, {}) if isinstance(node, dict) else node
+            if isinstance(node, dict):
+                node = node.get(part, {})
+            else:
+                node = {}
+                break
         return node if isinstance(node, str) else (default or key)
 
     def get_ui_dict(self) -> dict:
@@ -99,17 +112,29 @@ class I18nEngine:
         return self._lang
 
 
-# Singleton
-_i18n: I18nEngine | None = None
+# Engines cache by language
+_engines: dict[str, I18nEngine] = {}
 
 
 def get_i18n(lang: str | None = None) -> I18nEngine:
-    global _i18n
-    if _i18n is None:
-        _i18n = I18nEngine(lang or DEFAULT_LANG)
-    elif lang and lang in SUPPORTED_LANGS:
-        _i18n.set_lang(lang)
-    return _i18n
+    """Get the I18nEngine for the given language or the current context language."""
+    if lang is None:
+        lang = _current_lang.get()
+
+    if lang not in _engines:
+        _engines[lang] = I18nEngine(lang)
+    return _engines[lang]
+
+
+def set_current_lang(lang: str):
+    """Set the language for the current context."""
+    if lang in SUPPORTED_LANGS:
+        _current_lang.set(lang)
+
+
+def get_current_lang() -> str:
+    """Get the language for the current context."""
+    return _current_lang.get()
 
 
 def detect_lang(message: str) -> str:

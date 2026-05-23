@@ -2,19 +2,19 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Bóveda Obsidian</h1>
+        <h1>{{ t("obsidian_title") }}</h1>
     </div>
     <div class="page-header-right">
         {% if configurado and obsidian_vault %}
         <span class="text-sm" style="color: var(--text-muted); margin-right: 8px;">{{ vault_path }}</span>
-        <a href="{{ obsidian_vault }}" class="btn btn-ghost btn-sm">Abrir en Obsidian</a>
+        <a href="{{ obsidian_vault }}" class="btn btn-ghost btn-sm">{{ t("open_obsidian") }}</a>
         {% endif %}
     </div>
 </div>
 
 {% if not configurado %}
 <div class="alert alert-warning mb-6">
-    <strong>Obsidian Vault no configurado.</strong>
+    <strong><strong>{{ t("obsidian_not_configured") }}.</strong>
     Configura <code>OBSIDIAN_VAULT</code> en tu <code>.env</code> para activar la sincronización automática.
 </div>
 {% else %}

@@ -48,7 +48,11 @@ async def alert_checker_node(
                         tipo=cfg["tipo"],
                         nivel=cfg["nivel"],
                         accion="notify_coach" if cfg["nivel"] in ("high", "urgent") else "adjust_response",
-                        mensaje=f"Cliente {profile.nombre}: {cfg['tipo'].replace('_', ' ')} detectado ({field}={value})",
+                        mensaje=(
+                            f'Cliente {profile.nombre}: {cfg["tipo"].replace("_", " ")} detectado ({field}={value})'
+                            if profile.locale == 'es' else
+                            f'Client {profile.nombre}: {cfg["tipo"].replace("_", " ").replace("alta resistencia", "high resistance").replace("estancamiento", "stagnation").replace("crisis emocional", "emotional crisis").replace("baja energia", "low energy")} detected ({field}={value})'
+                        ),
                         cliente_id=client_id,
                         coach_id=profile.coach_id,
                     )

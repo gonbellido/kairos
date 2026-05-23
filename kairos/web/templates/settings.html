@@ -1,16 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-header">
-    <div class="page-header-left"><h1>Configuración</h1></div>
+    <div class="page-header-left"><h1>{{ t("prompts.settings_title") }}</h1></div>
+</div>
+
+
+<div class="card mb-4">
+    <h3 class="mb-3">🌐 {{ t("language") }}</h3>
+    <div class="flex items-center gap-3">
+        <select id="coach-lang" class="input" style="max-width: 200px;" onchange="saveLanguage(this.value)">
+            <option value="es" {% if coach.get('language','es') == 'es' %}selected{% endif %}>Español</option>
+            <option value="en" {% if coach.get('language','es') == 'en' %}selected{% endif %}>English</option>
+        </select>
+        <span id="lang-status" class="text-sm"></span>
+    </div>
 </div>
 
 <!-- Default Journey -->
 <div class="card mb-4">
-    <h3 class="mb-3">🧭 Journey por defecto</h3>
-    <p class="body mb-3">Este journey se asigna automáticamente a todo nuevo cliente que llegue por cualquier canal (web, Telegram, WhatsApp).</p>
+    <h3 class="mb-3">🧭 {{ t("ui.default_journey", default="Journey por defecto") }}</h3>
+    <p class="body mb-3"<p class="body mb-3">{{ t("ui.default_journey_hint", default="Este journey se asigna automáticamente a todo nuevo cliente.") }}</p>
     <div class="flex items-center gap-3">
         <select id="default-journey" class="input" style="max-width: 350px;" onchange="saveDefaultJourney()">
-            <option value="">— Sin journey por defecto —</option>
+            <option value="">— {{ t("ui.no_default_journey", default="Sin journey por defecto") }} —</option>
             {% for j in journeys %}
             <option value="{{ j.id }}" {% if coach.get('default_journey_id','') == j.id %}selected{% endif %}>{{ j.name }} ({{ j.profile_type }})</option>
             {% endfor %}
@@ -90,5 +102,20 @@ async function saveDefaultJourney() {
     s.textContent = res.ok ? '✓' : 'Error';
     s.style.color = res.ok ? 'var(--success)' : 'var(--danger)';
 }
+
+async function saveLanguage(lang) {
+    const s = document.getElementById('lang-status');
+    s.textContent = '{{ t("settings_saving") }}';
+    const res = await fetch('/api/v1/settings/me', {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({locale: lang})});
+    if (res.ok) {
+        s.textContent = '{{ t("settings_saved") }}';
+        s.style.color = 'var(--success)';
+        setTimeout(() => location.reload(), 500);
+    } else {
+        s.textContent = 'Error';
+        s.style.color = 'var(--danger)';
+    }
+}
+
 </script>
 {% endblock %}

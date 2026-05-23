@@ -28,10 +28,24 @@ class ClassifierResult:
     risk_level: str = "low"
 
 
+MEMORY_TRIGGERS_EN = [
+    'said', 'told me', 'before', 'remember', 'commented',
+    'spoke', 'mentioned', 'last time', 'last week',
+    'yesterday', 'the last time', 'latest',
+]
+
 MEMORY_TRIGGERS = [
     "dijiste", "te dije", "antes", "recuerdas", "comenté", "comente",
     "hablamos", "mencioné", "mencione", "la vez anterior", "la semana",
     "ayer", "la última vez", "última", "ultimo",
+]
+
+DEEP_TRIGGERS_EN = [
+    'explain', 'do not understand', 'help me',
+    'feel like', 'it happens to me', 'have a problem', 'need',
+    'what does it mean', 'why', 'how can I', 'analysis',
+    'pattern', 'blockage', 'fear', 'anxiety', 'crisis',
+    'emotion', 'process', 'work', 'deepen',
 ]
 
 DEEP_TRIGGERS = [
@@ -41,6 +55,10 @@ DEEP_TRIGGERS = [
     "patrón", "patron", "bloqueo", "miedo", "ansiedad", "crisis",
     "emoción", "emocion", "proceso", "trabajar", "profundizar",
 ]
+
+QUESTION_STARTS_EN = (
+    'what', 'how', 'when', 'where', 'why', 'who', 'which',
+)
 
 QUESTION_STARTS = (
     "qué", "cómo", "cuándo", "dónde", "por qué", "quién", "cuál",
@@ -67,11 +85,11 @@ def classify(
 
     text = message.strip()
     words = text.split()
-    has_question = "?" in text or text.lower().startswith(QUESTION_STARTS)
+    has_question = "?" in text or text.lower().startswith(QUESTION_STARTS + QUESTION_STARTS_EN)
     msg_lower = text.lower()
 
     # 2. DEEP triggers → always DEEP
-    if any(t in msg_lower for t in DEEP_TRIGGERS):
+    if any(t in msg_lower for t in DEEP_TRIGGERS + DEEP_TRIGGERS_EN):
         return ClassifierResult(
             path=MessagePath.DEEP, channel=channel,
             complexity_score=0.8, detected_intent="clinical",
@@ -88,7 +106,7 @@ def classify(
         )
 
     # 4. Memory triggers → FAST with needs_memory
-    if any(t in msg_lower for t in MEMORY_TRIGGERS):
+    if any(t in msg_lower for t in MEMORY_TRIGGERS + MEMORY_TRIGGERS_EN):
         return ClassifierResult(
             path=MessagePath.FAST, channel=channel,
             complexity_score=0.4, detected_intent="question",

@@ -68,7 +68,7 @@ class CoachSessionModel(Base):
 class AgentPromptModel(Base):
     __tablename__ = "agent_prompts"
     id = Column(String, primary_key=True)
-    agent = Column(String, nullable=False, unique=True, index=True)
+    agent = Column(String, nullable=False, index=True)
     description = Column(String, default="")
     prompt_template = Column(Text, nullable=False)
     lang = Column(String, default="es")
@@ -155,6 +155,7 @@ class ClientSharedProfileModel(Base):
     client_id = Column(String, nullable=False, unique=True, index=True)
     coach_id = Column(String, nullable=False, index=True)
     journey_id = Column(String, nullable=True)
+    locale = Column(String, default="es")
     profile_data = Column(JSON, default=dict)
     goals_data = Column(JSON, default=dict)
     insights_data = Column(JSON, default=list)
@@ -173,6 +174,7 @@ class JourneyEventModel(Base):
     client_id = Column(String, nullable=False, index=True)
     coach_id = Column(String, nullable=False)
     journey_id = Column(String, nullable=True)
+    locale = Column(String, default="es")
     phase_id = Column(String, nullable=True)
     agent_id = Column(String, nullable=True)
     event_type = Column(String, nullable=False)

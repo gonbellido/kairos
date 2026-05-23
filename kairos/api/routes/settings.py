@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from kairos.engine.coach_auth_pg import CoachDBA
+from kairos.engine.i18n import get_i18n
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -27,16 +28,19 @@ DEFAULT_ONBOARDING = {
     "notify_journey_complete": True,
 }
 
+def _t(key: str) -> str:
+    return get_i18n().t(key)
+
 
 @router.get("/me")
 async def get_settings(req: Request):
     token = req.cookies.get("kairos_token")
     if not token:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
     coach_db: CoachDBA = req.app.state.coach_db
     coach = await coach_db.get_session(token)
     if not coach:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
 
     notif = coach.get("notification_settings") or DEFAULT_NOTIFICATION
     onboard = coach.get("onboarding_meta") or DEFAULT_ONBOARDING
@@ -45,6 +49,7 @@ async def get_settings(req: Request):
         "user_id": coach["id"],
         "notification": notif,
         "onboarding": onboard,
+        "locale": coach.get("language", "es")
     }
 
 
@@ -52,11 +57,11 @@ async def get_settings(req: Request):
 async def update_settings(req: Request):
     token = req.cookies.get("kairos_token")
     if not token:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
     coach_db: CoachDBA = req.app.state.coach_db
     coach = await coach_db.get_session(token)
     if not coach:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
 
     body = await req.json()
 
@@ -75,6 +80,11 @@ async def update_settings(req: Request):
         current.update(body["onboarding"])
         await coach_db.update_coach(coach["id"], onboarding_meta=current)
 
+    if "locale" in body:
+        lang = body["locale"]
+        if lang in ["es", "en"]:
+            await coach_db.update_coach(coach["id"], language=lang)
+
     return {"ok": True}
 
 
@@ -83,7 +93,7 @@ async def update_profile(req: Request):
     # Accept both coach token and client token
     token = req.cookies.get("kairos_token") or req.cookies.get("kairos_client_token")
     if not token:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
 
     coach_db: CoachDBA = req.app.state.coach_db
     coach = await coach_db.get_session(token)
@@ -104,7 +114,7 @@ async def update_profile(req: Request):
     auth = ClientAuth(req.app.state.runtime.client_store)
     client_profile = await auth.get_client_by_token(token)
     if not client_profile:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
 
     body = await req.json()
     profile_data = body.get("profile", {})
@@ -115,6 +125,8 @@ async def update_profile(req: Request):
         sp = await je.get_shared_profile(je._sf, client_profile.id)
         if sp:
             await je.update_shared_profile(client_profile.id, profile_data=profile_data)
+            if "locale" in body:
+                await je.update_shared_profile(client_profile.id, locale=body["locale"])
             return {"ok": True, "profile": profile_data}
         else:
             # Create shared profile if it doesn't exist
@@ -129,7 +141,7 @@ async def update_profile(req: Request):
 async def get_client_journeys(req: Request, client_id: str):
     token = req.cookies.get("kairos_token")
     if not token:
-        return JSONResponse({"error": "No autorizado"}, status_code=401)
+        return JSONResponse({"error": _t("errors.unauthorized")}, status_code=401)
 
     je = getattr(req.app.state, "journey_engine", None)
     if not je:
@@ -149,3 +161,35 @@ async def get_client_journeys(req: Request, client_id: str):
             "last_interaction_at": cj.get("last_interaction_at", ""),
         })
     return {"journeys": journeys}
+
+@router.post("/locale")
+async def set_locale(req: Request):
+    """Explicitly set the locale in a cookie and optionally in the user profile."""
+    body = await req.json()
+    lang = body.get("locale")
+    if lang not in ["es", "en"]:
+        return JSONResponse({"error": "Invalid locale"}, status_code=400)
+
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie("kairos_lang", lang, max_age=86400 * 30, httponly=True)
+
+    # If logged in as coach, update profile
+    token = req.cookies.get("kairos_token")
+    if token:
+        coach_db: CoachDBA = req.app.state.coach_db
+        coach = await coach_db.get_session(token)
+        if coach:
+            await coach_db.update_coach(coach["id"], language=lang)
+
+    # If logged in as client, update shared profile
+    client_token = req.cookies.get("kairos_client_token")
+    if client_token:
+        from kairos.engine.client_auth import ClientAuth
+        auth = ClientAuth(req.app.state.runtime.client_store)
+        client_profile = await auth.get_client_by_token(client_token)
+        if client_profile:
+            je = getattr(req.app.state, "journey_engine", None)
+            if je:
+                await je.update_shared_profile(client_profile.id, locale=lang)
+
+    return resp

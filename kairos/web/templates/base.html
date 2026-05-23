@@ -18,11 +18,21 @@
             <span class="badge badge-teal">coach</span>
         </div>
         <div class="topbar-center"></div>
-        <div class="topbar-right">
+        <div class="topbar-right" style="display: flex; align-items: center; gap: var(--space-3);">
+            <div class="lang-selector" style="margin-right: var(--space-2);">
+                <select onchange="changeLocale(this.value)" class="text-xs" style="background: transparent; border: 1px solid var(--border-subtle); color: var(--text-default); border-radius: 4px; padding: 2px 4px;">
+                    <option value="es" {% if lang == 'es' %}selected{% endif %}>ES</option>
+                    <option value="en" {% if lang == 'en' %}selected{% endif %}>EN</option>
+                </select>
+            </div>
             {% if coach %}
             <span class="text-sm lg-only">{{ coach.name }}</span>
-            <a href="/coach" class="btn btn-ghost btn-sm">Dashboard</a>
-            <a href="/logout" class="btn btn-ghost btn-sm text-danger">Salir</a>
+            <a href="/coach" class="btn btn-ghost btn-sm">{{ t('dashboard') }}</a>
+            <a href="/logout" class="btn btn-ghost btn-sm text-danger">{{ t('logout') }}</a>
+            {% endif %}
+            {% if client %}
+            <span class="text-sm lg-only">{{ client.nombre }}</span>
+            <a href="/client/logout" class="btn btn-ghost btn-sm text-danger">{{ t('logout') }}</a>
             {% endif %}
         </div>
     </header>
@@ -32,11 +42,11 @@
             <div class="sidebar-section">
                 <a href="/coach" class="sidebar-item active">
                     <span class="sidebar-icon">⌂</span>
-                    <span>Dashboard</span>
+                    <span>{{ t('dashboard') }}</span>
                 </a>
                 <a href="/coach/assistant" class="sidebar-item">
                     <span class="sidebar-icon">◈</span>
-                    <span>Asistente IA</span>
+                    <span>{{ t('sidebar_assistant') }}</span>
                 </a>
             </div>
             <div class="sidebar-section">
@@ -47,25 +57,25 @@
                 </a>
                 <a href="/coach/settings" class="sidebar-item">
                     <span class="sidebar-icon">⚙</span>
-                    <span>Configuración</span>
+                    <span>{{ t('prompts.settings_title') }}</span>
                 </a>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-label">Recursos</div>
+                <div class="sidebar-label">{{ t('sidebar_materials') }}</div>
                 <a href="/coach/materials" class="sidebar-item">
                     <span class="sidebar-icon">▥</span>
-                    <span>Materiales</span>
+                    <span>{{ t('sidebar_materials') }}</span>
                 </a>
                 <a href="/coach/obsidian" class="sidebar-item">
                     <span class="sidebar-icon">▦</span>
-                    <span>Obsidian</span>
+                    <span>{{ t('sidebar_obsidian') }}</span>
                 </a>
             </div>
             <div class="sidebar-section">
-                <div class="sidebar-label">Monitoreo</div>
+                <div class="sidebar-label">{{ t('sidebar_alerts') }}</div>
                 <a href="/coach/alerts" class="sidebar-item">
                     <span class="sidebar-icon">◉</span>
-                    <span>Alertas</span>
+                    <span>{{ t('sidebar_alerts') }}</span>
                 </a>
             </div>
             {% if coach.role == 'admin' %}
@@ -73,7 +83,7 @@
                 <div class="sidebar-label">Admin</div>
                 <a href="/admin" class="sidebar-item">
                     <span class="sidebar-icon">⚙</span>
-                    <span>Coaches</span>
+                    <span>{{ t('admin_title') }}</span>
                 </a>
                 <a href="/admin/journeys" class="sidebar-item">
                     <span class="sidebar-icon">◈</span>
@@ -96,7 +106,7 @@
             <div class="mt-4" style="margin-top: auto;">
                 <a href="/logout" class="sidebar-item text-danger">
                     <span class="sidebar-icon">⟵</span>
-                    <span>Salir</span>
+                    <span>{{ t('logout') }}</span>
                 </a>
             </div>
         </nav>
@@ -124,6 +134,17 @@
             if (dash) dash.classList.add('active');
         }
     })();
+
+    async function changeLocale(lang) {
+        const resp = await fetch('/api/v1/settings/locale', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locale: lang })
+        });
+        if (resp.ok) {
+            window.location.reload();
+        }
+    }
     </script>
 </body>
 </html>

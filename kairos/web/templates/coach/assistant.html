@@ -2,8 +2,8 @@
 {% block content %}
 <div class="page-header">
     <div class="page-header-left">
-        <h1>Asistente IA</h1>
-        <p class="body" style="margin-top: var(--space-1);">Pregunta sobre tus clientes, su progreso, patrones o alertas</p>
+        <h1>{{ t("assistant_title") }}</h1>
+        <p class="body" style="margin-top: var(--space-1);">{{ t("assistant_subtitle") }}</p>
     </div>
 </div>
 
@@ -11,10 +11,10 @@
     <!-- Messages -->
     <div id="chat-msgs" style="height: 55vh; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-4);">
         <div id="welcome" style="text-align: center; color: var(--text-muted); padding: var(--space-10);">
-            <p class="text-sm">Puedes preguntar cosas como:</p>
-            <p class="text-sm" style="color: var(--accent-teal); margin-top: var(--space-2);">"¿Cómo va el progreso de mis clientes?"</p>
-            <p class="text-sm" style="color: var(--accent-teal);">"¿Quién necesita atención urgente?"</p>
-            <p class="text-sm" style="color: var(--accent-teal);">"¿Qué patrones has detectado en Ana?"</p>
+            <p class="text-sm">{{ t("ui.assistant_can_ask", default="Puedes preguntar cosas como:") }}</p>
+            <p class="text-sm" style="color: var(--accent-teal); margin-top: var(--space-2);">"{{ t("assistant_hint_1") }}"</p>
+            <p class="text-sm" style="color: var(--accent-teal);">"{{ t("assistant_hint_2") }}"</p>
+            <p class="text-sm" style="color: var(--accent-teal);">"{{ t("assistant_hint_3") }}"</p>
         </div>
     </div>
 
@@ -22,8 +22,8 @@
     <div style="padding: var(--space-4); border-top: 1px solid var(--border-subtle);">
         <form id="ask-form" class="flex gap-2">
             <input id="question-input" type="text" class="input flex-1"
-                   placeholder="Ej: ¿Cómo va el progreso de mis clientes?" autofocus>
-            <button type="submit" class="btn btn-primary">Preguntar</button>
+                   placeholder="{{ t("assistant_placeholder") }}" autofocus>
+            <button type="submit" class="btn btn-primary">{{ t("assistant_ask") }}</button>
         </form>
     </div>
 </div>

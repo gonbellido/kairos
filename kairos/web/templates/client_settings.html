@@ -1,25 +1,31 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ lang or 'es' }}">
 <head>
     <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAIROS — Configuración</title>
+    <title>KAIROS — {{ t('prompts.settings_title') }}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/theme.css"><link rel="stylesheet" href="/static/css/components.css"><link rel="stylesheet" href="/static/css/layout.css">
 </head>
 <body class="app">
 <header class="topbar" style="justify-content:space-between">
-    <div style="display:flex;align-items:center;gap:12px"><a href="/client/dashboard" class="text-sm" style="color:var(--text-muted)">← Dashboard</a><span style="font-weight:600">{{ client.nombre }}</span></div>
-    <a href="/client/logout" class="btn btn-ghost btn-sm text-danger">Salir</a>
+    <div style="display:flex;align-items:center;gap:12px"><a href="/client/dashboard" class="text-sm" style="color:var(--text-muted)">← {{ t('dashboard') }}</a><span style="font-weight:600">{{ client.nombre }}</span></div>
+    <div class="flex items-center gap-2">
+        <select onchange="changeLocale(this.value)" class="text-xs" style="background: transparent; border: 1px solid var(--border-subtle); color: var(--text-default); border-radius: 4px; padding: 2px 4px;">
+            <option value="es" {% if lang == 'es' %}selected{% endif %}>ES</option>
+            <option value="en" {% if lang == 'en' %}selected{% endif %}>EN</option>
+        </select>
+        <a href="/client/logout" class="btn btn-ghost btn-sm text-danger">{{ t('logout') }}</a>
+    </div>
 </header>
 <main class="main"><div class="content" style="max-width:800px">
 
-<div class="page-header"><div class="page-header-left"><h1>⚙ Configuración</h1></div></div>
+<div class="page-header"><div class="page-header-left"><h1>⚙ {{ t('prompts.settings_title') }}</h1></div></div>
 
 <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
-    <button class="tab-pill active" onclick="switchTab('profile',this)">👤 Perfil</button>
-    <button class="tab-pill" onclick="switchTab('privacy',this)">🔒 Privacidad</button>
-    <button class="tab-pill" onclick="switchTab('coach',this)">👥 Mi Coach</button>
+    <button class="tab-pill active" onclick="switchTab('profile',this)">👤 {{ t('prompts.settings_profile') }}</button>
+    <button class="tab-pill" onclick="switchTab('privacy',this)">🔒 {{ t('prompts.settings_privacy') }}</button>
+    <button class="tab-pill" onclick="switchTab('coach',this)">👥 {{ t('ui.my_coach', default='Mi Coach') }}</button>
 </div>
 <style>.tab-pill{padding:8px 18px;border-radius:999px;border:1px solid var(--border-default);background:transparent;color:var(--text-muted);font-size:13px;font-weight:500;cursor:pointer}.tab-pill.active{background:var(--accent-teal-muted);color:var(--accent-teal);border-color:var(--accent-teal)}</style>
 
@@ -29,47 +35,47 @@
 
 <!-- Datos personales -->
 <div class="card mb-4">
-    <h3 class="mb-3">Datos personales</h3>
-    <p class="body mb-4">Esta información la ve tu coach para personalizar tu acompañamiento.</p>
+    <h3 class="mb-3">{{ t('prompts.settings_personal_info', default='Datos personales') }}</h3>
+    <p class="body mb-4">{{ t('ui.settings_personal_info_hint', default='Esta información la ve tu coach para personalizar tu acompañamiento.') }}</p>
     <div class="grid grid-2 gap-3">
-        <div class="form-group"><label class="label">Nombre</label><input id="f-name" class="input" value="{{ client.nombre }}" disabled></div>
-        <div class="form-group"><label class="label">Apellidos</label><input id="f-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
-        <div class="form-group"><label class="label">Email</label><input id="f-email" class="input" value="{{ pdata.get('email','') }}" placeholder="tu@email.com"></div>
-        <div class="form-group"><label class="label">Teléfono</label><input id="f-phone" class="input" value="{{ pdata.get('phone','') }}" placeholder="+34 600 000 000"></div>
+        <div class="form-group"><label class="label">{{ t('client_name') }}</label><input id="f-name" class="input" value="{{ client.nombre }}" disabled></div>
+        <div class="form-group"><label class="label">{{ t('ui.surname', default='Apellidos') }}</label><input id="f-surname" class="input" value="{{ pdata.get('surname','') }}"></div>
+        <div class="form-group"><label class="label">{{ t('login_email') }}</label><input id="f-email" class="input" value="{{ pdata.get('email','') }}" placeholder="tu@email.com"></div>
+        <div class="form-group"><label class="label">{{ t('ui.phone', default='Teléfono') }}</label><input id="f-phone" class="input" value="{{ pdata.get('phone','') }}" placeholder="+34 600 000 000"></div>
     </div>
 </div>
 
 <!-- Datos profesionales -->
 <div class="card mb-4">
-    <h3 class="mb-3">Información profesional</h3>
+    <h3 class="mb-3">{{ t('prompts.settings_professional_info') }}</h3>
     <div class="grid grid-2 gap-3">
-        <div class="form-group"><label class="label">Profesión / Cargo</label><input id="f-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
-        <div class="form-group"><label class="label">Empresa</label><input id="f-company" class="input" value="{{ pdata.get('company','') }}"></div>
-        <div class="form-group"><label class="label">Sector</label>
+        <div class="form-group"><label class="label">{{ t('prompts.settings_job_title') }}</label><input id="f-job" class="input" value="{{ pdata.get('job_title','') }}"></div>
+        <div class="form-group"><label class="label">{{ t('prompts.settings_company') }}</label><input id="f-company" class="input" value="{{ pdata.get('company','') }}"></div>
+        <div class="form-group"><label class="label">{{ t('prompts.settings_industry') }}</label>
             <select id="f-industry" class="input">{% for i in ['Tecnología','Finanzas','Salud','Educación','Coaching','Consultoría','Otro'] %}<option value="{{ i }}" {% if pdata.get('industry','')==i %}selected{% endif %}>{{ i }}</option>{% endfor %}</select></div>
-        <div class="form-group"><label class="label">Ubicación</label><input id="f-location" class="input" value="{{ pdata.get('location','') }}"></div>
+        <div class="form-group"><label class="label">{{ t('prompts.settings_location') }}</label><input id="f-location" class="input" value="{{ pdata.get('location','') }}"></div>
     </div>
 </div>
 
 <!-- Sobre ti -->
 <div class="card mb-4">
-    <h3 class="mb-3">Sobre ti</h3>
+    <h3 class="mb-3">{{ t('prompts.settings_bio') }}</h3>
     <div style="position:relative">
-        <textarea id="f-bio" class="input" rows="4" maxlength="200" placeholder="Cuéntale a tu coach sobre ti, tus intereses y qué te gustaría trabajar...">{{ pdata.get('bio','') }}</textarea>
+        <textarea id="f-bio" class="input" rows="4" maxlength="200" placeholder="{{ t('settings_bio_placeholder') }}">{{ pdata.get('bio','') }}</textarea>
         <span id="bio-count" class="text-sm" style="position:absolute;bottom:8px;right:12px">{{ (pdata.get('bio','')|length) }}/200</span>
     </div>
 </div>
 
 <!-- Redes -->
 <div class="card mb-4">
-    <h3 class="mb-3">Redes sociales</h3>
+    <h3 class="mb-3">{{ t('prompts.settings_social') }}</h3>
     <div class="grid grid-2 gap-3">
         <div class="form-group"><label class="label">LinkedIn</label><input id="f-linkedin" class="input" value="{{ pdata.get('linkedin','') }}" placeholder="https://linkedin.com/in/..."></div>
         <div class="form-group"><label class="label">Instagram</label><input id="f-instagram" class="input" value="{{ pdata.get('instagram','') }}"></div>
     </div>
 </div>
 
-<button onclick="saveProfile()" class="btn btn-primary btn-lg" style="width:100%">💾 Guardar cambios</button>
+<button onclick="saveProfile()" class="btn btn-primary btn-lg" style="width:100%">💾 {{ t('prompts.settings_save_profile') }}</button>
 <span id="status" class="text-sm" style="margin-left:12px"></span>
 
 </div>
@@ -77,20 +83,20 @@
 <div id="tab-privacy" class="tab-content hidden">
 <!-- Privacidad -->
 <div class="card mb-4 mt-6">
-    <h3 class="mb-3">🔒 Privacidad y datos</h3>
-    <p class="body mb-3">Tú controlas qué información compartes con tu coach.</p>
+    <h3 class="mb-3">🔒 {{ t('prompts.settings_privacy') }}</h3>
+    <p class="body mb-3">{{ t('ui.privacy_hint', default='Tú controlas qué información compartes con tu coach.') }}</p>
     {% for topic in ['Trabajo y carrera','Relaciones personales','Familia','Salud','Finanzas','Crecimiento personal'] %}
     <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border-subtle)"><span>{{ topic }}</span><label class="toggle active" style="cursor:pointer"><input type="checkbox" checked style="display:none"></label></div>
     {% endfor %}
-    <div class="flex items-center justify-between py-3 mt-2"><span>Notificarme cuando mi coach revise mi progreso</span><label class="toggle active"><input type="checkbox" checked style="display:none"></label></div>
-    <p class="text-sm mt-3">Para solicitar la eliminación de tus datos, contacta con tu coach o escribe a privacidad@ether.care</p>
+    <div class="flex items-center justify-between py-3 mt-2"><span>{{ t('settings_notify_review') }}</span><label class="toggle active"><input type="checkbox" checked style="display:none"></label></div>
+    <p class="text-sm mt-3">{{ t('ui.delete_data_hint', default='Para solicitar la eliminación de tus datos, contacta con tu coach o escribe a privacidad@ether.care') }}</p>
 </div>
 </div>
 
 <div id="tab-coach" class="tab-content hidden">
-<div class="card mb-4"><h3 class="mb-3">👥 Mi Coach</h3>
-<p class="body">Tu coach es <strong>{{ coach_name or 'Luis Martin' }}</strong>. Él te acompaña en tu proceso y puede ver tu progreso, estado emocional y datos de perfil.</p>
-<p class="body mt-2">Si necesitas contactar directamente con tu coach, usa el buzón de consultas en tu dashboard.</p>
+<div class="card mb-4"><h3 class="mb-3">👥 {{ t('ui.my_coach') }}</h3>
+<p class="body">{{ t('ui.my_coach_info', coach=coach_name or 'Luis Martin') }}</p>
+<p class="body mt-2">{{ t('ui.my_coach_contact_hint', default='Si necesitas contactar directamente con tu coach, usa el buzón de consultas en tu dashboard.') }}</p>
 </div>
 </div>
 
@@ -103,9 +109,19 @@ function switchTab(n,b){document.querySelectorAll('.tab-content').forEach(t=>t.c
 async function saveProfile(){
     const p = {surname:document.getElementById('f-surname').value,email:document.getElementById('f-email').value,phone:document.getElementById('f-phone').value,job_title:document.getElementById('f-job').value,company:document.getElementById('f-company').value,industry:document.getElementById('f-industry').value,location:document.getElementById('f-location').value,bio:document.getElementById('f-bio').value,linkedin:document.getElementById('f-linkedin').value,instagram:document.getElementById('f-instagram').value};
     document.getElementById('bio-count').textContent=(p.bio||'').length+'/200';
-    const s=document.getElementById('status');s.textContent='Guardando...';
+    const s=document.getElementById('status');s.textContent='{{ t("settings_saving") }}';
     const r=await fetch('/api/v1/settings/profile',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile:p})});
-    s.textContent=r.ok?'✅ Guardado':'Error';s.style.color=r.ok?'var(--success)':'var(--danger)';
+    s.textContent=r.ok?'{{ t("settings_saved") }}':'Error';s.style.color=r.ok?'var(--success)':'var(--danger)';
+}
+async function changeLocale(lang) {
+    const resp = await fetch('/api/v1/settings/locale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale: lang })
+    });
+    if (resp.ok) {
+        window.location.reload();
+    }
 }
 </script>
 </body>

@@ -189,7 +189,7 @@ class KairosTelegramBot:
             profile_id="coaching",
             message=update.message.text,
             user_id=client_id,
-            context=ctx,
+            context={**ctx, "locale": self._lang},
         )
         response = result.get("final_response", "⚠️ No pude procesar tu mensaje. Intenta de nuevo.")
         log_activity("agent_response_tg", {"client_id": client_id, "length": len(response), "channel": "telegram"})
@@ -222,7 +222,7 @@ class KairosTelegramBot:
                     profile_id="coaching",
                     message=text,
                     user_id=client_id,
-                    context={"client_id": client_id, "_audio_path": ogg_path},
+                    context={"client_id": client_id, "_audio_path": ogg_path, "locale": self._lang},
                 )
                 resp = result.get("final_response", "")
                 if resp:

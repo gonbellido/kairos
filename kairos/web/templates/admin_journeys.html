@@ -3,18 +3,18 @@
 <div class="page-header">
     <div class="page-header-left">
         <div class="breadcrumb"><a href="/admin">← Admin</a></div>
-        <h1>Journeys</h1>
-        <p class="body" style="margin-top: var(--space-1);">Cada journey es un proceso completo. Las fases son etapas. Los agentes ejecutan cada fase con su prompt.</p>
+        <h1>{{ t("admin_journeys.title", default="Journeys") }}</h1>
+        <p class="body" style="margin-top: var(--space-1);"<p class="body" style="margin-top: var(--space-1);">{{ t("admin_journeys.subtitle", default="Cada journey es un proceso completo. Las fases son etapas.") }}</p>
     </div>
     <div class="page-header-right">
-        <button onclick="openJourneyModal()" class="btn btn-primary btn-sm">+ Nuevo journey</button>
+        <button onclick="openJourneyModal()" class="btn btn-primary btn-sm">+ {{ t("admin_journeys.new", default="Nuevo journey") }}</button>
     </div>
 </div>
 
 <!-- Type filter -->
 {% set types = journeys|map(attribute='profile_type')|unique|list %}
 <div class="flex items-center gap-2 mb-4 flex-wrap">
-    <span class="text-sm" style="color: var(--text-muted);">Tipo:</span>
+    <span class="text-sm" style="color: var(--text-muted);"<span class="text-sm" style="color: var(--text-muted);">{{ t("admin_journeys.type", default="Tipo") }}:</span>
     <a href="?type=" class="badge {% if not request.query_params.get('type') %}badge-teal{% else %}badge-neutral{% endif %}" style="text-decoration: none;">Todos ({{ journeys|length }})</a>
     {% for t in types %}
     <a href="?type={{ t }}" class="badge {% if request.query_params.get('type') == t %}badge-teal{% else %}badge-indigo{% endif %}" style="text-decoration: none;">{{ t }} ({{ journeys|selectattr('profile_type', 'equalto', t)|list|length }})</a>
@@ -90,16 +90,16 @@
 
 <!-- Journey Edit/Create -->
 <div id="journey-modal" class="modal-overlay hidden"><div class="modal">
-    <div class="modal-header"><h2 id="j-modal-title">Nuevo Journey</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
+    <div class="modal-header"><h2 id="j-modal-title"<h2>{{ t("admin_journeys.new_journey_modal", default="Nuevo Journey") }}</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
     <form id="journey-form"><input type="hidden" id="j-id">
-        <div class="form-group"><label class="label">Nombre</label><input type="text" id="j-name" class="input" required></div>
-        <div class="form-group"><label class="label">Descripción</label><textarea id="j-desc" class="input" rows="2"></textarea></div>
-        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="j-obj" class="input"></div>
+        <div class="form-group"><label class="label">{{ t("admin_name") }}</label><input type="text" id="j-name" class="input" required></div>
+        <div class="form-group"><label class="label">{{ t("client_context") }}</label><textarea id="j-desc" class="input" rows="2"></textarea></div>
+        <div class="form-group"><label class="label">{{ t("objectives") }}</label><input type="text" id="j-obj" class="input"></div>
         <div class="flex gap-3">
             <div class="form-group flex-1"><label class="label">Tipo</label><select id="j-type" class="input"><option value="coaching">Coaching</option><option value="comercial">Comercial</option><option value="financiero">Financiero</option><option value="bioneuro">Bioneuromoción</option><option value="custom">Custom</option></select></div>
             <div class="form-group flex-1"><label class="label">Status</label><select id="j-status" class="input"><option value="draft">Draft</option><option value="active">Active</option><option value="archived">Archived</option></select></div>
         </div>
-        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="j-submit">Crear</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="j-submit">Crear</button><button type="button" onclick="closeModals()" class="btn btn-secondary">{{ t("cancel") }}</button></div>
     </form>
 </div></div>
 
@@ -107,10 +107,10 @@
 <div id="phase-modal" class="modal-overlay hidden"><div class="modal">
     <div class="modal-header"><h2 id="p-modal-title">Añadir Fase</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
     <form id="phase-form"><input type="hidden" id="p-id"><input type="hidden" id="p-jid">
-        <div class="form-group"><label class="label">Nombre</label><input type="text" id="p-name" class="input" required></div>
-        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="p-obj" class="input"></div>
+        <div class="form-group"><label class="label">{{ t("admin_name") }}</label><input type="text" id="p-name" class="input" required></div>
+        <div class="form-group"><label class="label">{{ t("objectives") }}</label><input type="text" id="p-obj" class="input"></div>
         <div class="form-group"><label class="label">Orden</label><input type="number" id="p-order" class="input" value="0"></div>
-        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="p-submit">Añadir</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="p-submit">Añadir</button><button type="button" onclick="closeModals()" class="btn btn-secondary">{{ t("cancel") }}</button></div>
     </form>
 </div></div>
 
@@ -118,15 +118,15 @@
 <div id="agent-modal" class="modal-overlay hidden"><div class="modal">
     <div class="modal-header"><h2 id="a-modal-title">Agente</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
     <form id="agent-form"><input type="hidden" id="a-id"><input type="hidden" id="a-jid"><input type="hidden" id="a-pid">
-        <div class="form-group"><label class="label">Nombre</label><input type="text" id="a-name" class="input" required></div>
+        <div class="form-group"><label class="label">{{ t("admin_name") }}</label><input type="text" id="a-name" class="input" required></div>
         <div class="form-group"><label class="label">Rol</label><input type="text" id="a-role" class="input"></div>
-        <div class="form-group"><label class="label">Objetivo</label><input type="text" id="a-goal" class="input"></div>
+        <div class="form-group"><label class="label">{{ t("objectives") }}</label><input type="text" id="a-goal" class="input"></div>
         <div class="form-group"><label class="label">System Prompt (instrucciones principales)</label><textarea id="a-prompt" class="input" rows="8" style="font-family: var(--font-mono); font-size: 12px;"></textarea></div>
         <div class="form-group"><label class="label">Instrucciones adicionales</label><textarea id="a-instr" class="input" rows="3"></textarea></div>
         <div class="form-group"><label class="label">Allowed Tags (JSON array, ej: ["urgent","skip"])</label><input id="a-tags" class="input" placeholder='["urgent_followup","jump:step=5"]'></div>
         <div class="form-group"><label class="label">Output Schema (JSON, campos requeridos)</label><input id="a-schema" class="input" placeholder='{"required_fields":["message","structured"]}'></div>
         <div id="a-status" class="hidden text-sm mb-3"></div>
-        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="a-submit">Guardar</button><button type="button" onclick="closeModals()" class="btn btn-secondary">Cancelar</button></div>
+        <div class="modal-footer"><button type="submit" class="btn btn-primary" id="a-submit">{{ t("send") }}</button><button type="button" onclick="closeModals()" class="btn btn-secondary">{{ t("cancel") }}</button></div>
     </form>
 </div></div>
 

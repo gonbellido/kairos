@@ -103,7 +103,7 @@ async def chat_stream(req: Request, body: StreamRequest):
                     profile_id=body.profile_id,
                     message=body.message,
                     user_id=body.user_id,
-                    context=body.context,
+                    context={**body.context, "locale": body.context.get("locale") or getattr(req.state, "lang", "es")},
                 )
                 response = raw_result.get("final_response", "")
                 confidence = raw_result.get("confidence", 0.0)

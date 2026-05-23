@@ -12,7 +12,7 @@ class NotificationService:
     def __init__(self, webhook_url: str | None = None):
         self._webhook = webhook_url
 
-    async def send_alert(self, alert: Alert) -> bool:
+    async def send_alert(self, alert: Alert, locale: str = "es") -> bool:
         logger.info("ALERT [%s] %s: %s", alert.nivel, alert.tipo, alert.mensaje)
 
         if not self._webhook:
@@ -27,6 +27,7 @@ class NotificationService:
                     "mensaje": alert.mensaje,
                     "cliente_id": alert.cliente_id,
                     "accion": alert.accion,
+                    "locale": locale,
                     "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 })
                 resp.raise_for_status()
@@ -36,7 +37,7 @@ class NotificationService:
             logger.warning("Webhook failed: %s", e)
             return False
 
-    async def send_summary(self, coach_id: str, summary: dict[str, Any]) -> bool:
+    async def send_summary(self, coach_id: str, summary: dict[str, Any], locale: str = "es") -> bool:
         logger.info("SUMMARY for %s: %s", coach_id, summary)
         if not self._webhook:
             return False
@@ -46,6 +47,7 @@ class NotificationService:
                     "event": "kairos.summary",
                     "coach_id": coach_id,
                     **summary,
+                    "locale": locale,
                     "timestamp": datetime.now(tz=timezone.utc).isoformat(),
                 })
                 return resp.status_code == 200

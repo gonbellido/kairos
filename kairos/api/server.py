@@ -3,58 +3,28 @@ import json
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 
+from kairos.api.middleware import AuthMiddleware, I18nMiddleware
+from kairos.api.routes import chat, clients, feedback, sessions, upload, materials, coach_assist, web, stream, voice, monitor
+from kairos.api.routes import settings as settings_routes
+from kairos.api import architect as architect_routes
 from kairos.config import get_settings
-from kairos.config.trace import TraceContext, generate_trace_id
-from kairos.config.logging import setup_logging as setup_structured_logging
 from kairos.config.json_logging import setup_json_logging
-from kairos.agents.orchestrator import KairosRuntime
-from kairos.engine.telegram_bot import KairosTelegramBot
-from kairos.engine.health_checker import HealthChecker
-from kairos.engine.coach_auth_pg import CoachDBA
-from kairos.engine.metrics import get_metrics
-from kairos.engine.cache import get_cache_stats
-from kairos.engine.i18n import get_i18n
-from kairos.engine.prompt_store import PromptStore
-from kairos.engine.journey_engine import JourneyEngine
-from kairos.api.middleware import AuthMiddleware
-from kairos.api.rate_limiter import RateLimiter
+from kairos.config.logging import setup_logging as setup_structured_logging
 from kairos.db.session import create_session_factory
-from .routes import chat, stream, clients, feedback, sessions, upload, materials, coach_assist, web, monitor, voice
-from .routes import settings as settings_routes
-from . import architect as architect_routes
+from kairos.engine.coach_auth_pg import CoachDBA
+from kairos.engine.health_checker import HealthChecker
+from kairos.engine.journey_engine import JourneyEngine
+from kairos.engine.metrics import get_metrics
+from kairos.engine.prompt_store import PromptStore
+from kairos.engine.telegram_bot import KairosTelegramBot
+from kairos.agents.orchestrator import KairosRuntime
 
 logger = logging.getLogger(__name__)
 
 _bot_app = None
-
-
-class TraceMiddleware(BaseHTTPMiddleware):
-    """C1: Genera trace_id por request y lo propaga al contexto de logging."""
-
-    async def dispatch(self, request: Request, call_next):
-        trace_id = generate_trace_id()
-        with TraceContext(trace_id=trace_id):
-            response = await call_next(request)
-            response.headers["X-Trace-Id"] = trace_id
-            return response
-
-
-class LanguageMiddleware(BaseHTTPMiddleware):
-    """E: Detecta idioma del request y configura i18n."""
-
-    async def dispatch(self, request: Request, call_next):
-        qp = request.query_params.get("lang", "")
-        cookie = request.cookies.get("kairos_lang", "")
-        lang = qp if qp in ("es", "en") else (cookie if cookie in ("es", "en") else "es")
-        get_i18n(lang)
-        response = await call_next(request)
-        if not qp and not cookie:
-            response.set_cookie("kairos_lang", lang, max_age=86400 * 30, httponly=True)
-        return response
 
 
 @asynccontextmanager
@@ -92,8 +62,12 @@ async def lifespan(app: FastAPI):
         await journey_engine.seed_defaults()
     except Exception as e:
         logger.error("Failed to seed journeys: %s", e)
-    logger.info("Journey engine initialized with %d templates", 
-                len(await journey_engine.list_journeys("default")))
+
+    try:
+        templates = await journey_engine.list_journeys("default")
+        logger.info("Journey engine initialized with %d templates", len(templates))
+    except Exception:
+        logger.warning("Failed to list journey templates")
 
     runtime = KairosRuntime(profiles_dir=app_settings.profiles_dir, prompt_store=prompt_store, journey_engine=journey_engine)
     journey_engine._case_store = runtime.case_store
@@ -121,7 +95,7 @@ async def lifespan(app: FastAPI):
                     coach_id=c["id"], lang=c.get("language", "es"),
                     journey_engine=app.state.journey_engine,
                 )
-                _bot_app_inner = bot.build_app()
+                bot.build_app()
                 app.state.telegram_bots[c["id"]] = bot
                 logger.info("Telegram bot ready for coach %s (%s)", c["name"], c["id"])
             except Exception as e:
@@ -160,11 +134,9 @@ def create_app() -> FastAPI:
 
     app.add_middleware(CORSMiddleware, allow_origins=app_settings.api_cors_origins.split(","),
                        allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
-    app.add_middleware(LanguageMiddleware)
-    app.add_middleware(TraceMiddleware)
+    app.add_middleware(I18nMiddleware)
     if app_settings.llm_api_key:
         app.add_middleware(AuthMiddleware)
-    app.add_middleware(RateLimiter)
 
     @app.get("/health")
     async def health(req: Request):
@@ -173,11 +145,11 @@ def create_app() -> FastAPI:
         status = 200 if result["status"] == "ok" else 503
         return Response(status_code=status, content=json.dumps(result, default=str), media_type="application/json")
 
-    # C2: endpoint de métricas del pipeline
     @app.get("/metrics")
     async def metrics(req: Request):
         m = get_metrics()
         snap = m.snapshot()
+        from kairos.engine.cache import get_cache_stats
         snap["cache"] = get_cache_stats()
         # D5: Prometheus text format support
         fmt = req.query_params.get("format", "json")
@@ -258,7 +230,6 @@ def create_app() -> FastAPI:
         from fastapi.responses import RedirectResponse
         return RedirectResponse("/coach")
 
-    logger.info("KAIROS routes: %d", len([r for r in app.routes if hasattr(r, 'path')]))
     return app
 
 
