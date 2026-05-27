@@ -720,13 +720,19 @@ class JourneyEngine:
         if data and isinstance(data, dict):
             result["message"] = data.get("message", llm_response)
             structured = data.get("structured", {}) or {}
+
+            # Bug fix: read next_step_tag (string) used by coaching/comercial/financiero prompts
+            # in addition to suggested_tags (array) used by bioneuro prompts
             suggested_tags = data.get("suggested_tags", []) or []
+            next_step_tag = data.get("next_step_tag")
+            if next_step_tag and isinstance(next_step_tag, str) and next_step_tag not in suggested_tags:
+                suggested_tags.append(next_step_tag)
             if suggested_tags:
                 result["suggested_tags"] = suggested_tags
 
             # Core: Extract ALL collected data regardless of JSON format
             # Supports: {"collected_data": {...}}, {"structured": {"collected_data": {...}}},
-            #           {"structured": {"field": "value", ...}}
+            #           {"structured": {"required_fields": {...}}}, {"structured": {"field": "value"}}
             all_fields = {}
 
             # 1. Top-level collected_data (bioneuro format)
@@ -734,18 +740,30 @@ class JourneyEngine:
             if isinstance(top_collected, dict):
                 all_fields.update((k, v) for k, v in top_collected.items() if v and not k.startswith("_"))
 
-            # 2. structured.collected_data (new format)
             if isinstance(structured, dict):
+                # 2. structured.collected_data
                 struct_collected = structured.get("collected_data", {})
                 if isinstance(struct_collected, dict):
                     all_fields.update((k, v) for k, v in struct_collected.items() if v and not k.startswith("_"))
 
-                # 3. structured.required_fields values
+                # 3. structured.required_fields (coaching/comercial/financiero format) — was being skipped before
+                req_fields = structured.get("required_fields", {})
+                if isinstance(req_fields, dict):
+                    all_fields.update((k, v) for k, v in req_fields.items() if v and not k.startswith("_"))
+
+                # 4. Other scalar fields in structured (legacy)
                 for key in structured:
-                    if key not in ("collected_data", "phase_completed") and not key.startswith("_"):
+                    if key not in ("collected_data", "phase_completed", "required_fields") and not key.startswith("_"):
                         val = structured[key]
                         if isinstance(val, (str, int, float, bool)) and val:
                             all_fields[key] = val
+
+            logger.debug(
+                "journey validate: client=%s agent=%s json_parsed=True fields=%s phase_completed=%s tags=%s",
+                client_id, (agent_data or {}).get("name", "?"),
+                list(all_fields.keys()), structured.get("phase_completed") if isinstance(structured, dict) else False,
+                suggested_tags,
+            )
 
             # Save to shared profile
             if all_fields:
@@ -763,6 +781,11 @@ class JourneyEngine:
 
             if isinstance(structured, dict) and structured.get("phase_completed"):
                 result["phase_completed"] = True
+        else:
+            logger.warning(
+                "journey validate: client=%s agent=%s JSON parse FAILED — no advancement. preview=%.300s",
+                client_id, (agent_data or {}).get("name", "?"), llm_response,
+            )
 
         # K2: Tag transitions
         if result.get("suggested_tags") and agent_data:

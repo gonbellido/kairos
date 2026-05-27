@@ -105,6 +105,21 @@ async def journey_advance_node(state: AgentState, journey_engine) -> dict[str, A
         current_agent_id = journey_context.get("current_agent_id")
         agent_data = next((a for a in agents if a["id"] == current_agent_id), None)
 
+        # Parse JSON before trace so we can report json_parsed status
+        data = None
+        try:
+            clean = llm_response.strip()
+            if clean.startswith("```"):
+                lines = clean.split("\n")
+                if lines[0].startswith("```"):
+                    lines = lines[1:]
+                if lines[-1].startswith("```"):
+                    lines = lines[:-1]
+                clean = "\n".join(lines).strip()
+            data = json.loads(clean)
+        except Exception:
+            pass
+
         result = await journey_engine.validate_and_advance(
             client_id=client_id,
             llm_response=llm_response,
@@ -117,38 +132,32 @@ async def journey_advance_node(state: AgentState, journey_engine) -> dict[str, A
             "tags": result.get("suggested_tags", []),
             "agent": agent_data.get("name", "?") if agent_data else "?",
             "response_len": len(llm_response),
+            "json_parsed": data is not None,
+            "raw_preview": llm_response[:400],
         })
 
-        # Detect collected data from JSON
-        data = None
-        try:
-            clean = llm_response.strip()
-            if clean.startswith("```"):
-                # Handle cases where it might be ```json or just ```
-                lines = clean.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines[-1].startswith("```"):
-                    lines = lines[:-1]
-                clean = "\n".join(lines).strip()
-            data = json.loads(clean)
-        except Exception:
-            pass
-
+        # Detect collected data from JSON and save via save_collected
         if data and isinstance(data, dict):
             structured = data.get("structured", {}) or {}
-            collected = structured.get("collected_data")
+            collected = structured.get("collected_data") if isinstance(structured, dict) else None
+
             if not collected and isinstance(structured, dict):
-                # Fallback to other fields as per journey_engine logic
+                # Try required_fields first (coaching/comercial/financiero format)
+                rf = structured.get("required_fields", {})
+                if isinstance(rf, dict) and rf:
+                    collected = {k: v for k, v in rf.items() if v and not k.startswith("_")}
+
+            if not collected and isinstance(structured, dict):
+                # Fallback: scalar fields only (avoid saving nested dicts as collected keys)
                 collected = {k: v for k, v in structured.items()
-                             if v and not k.startswith("_") and not k.startswith("phase")}
+                             if v and not k.startswith("_") and not k.startswith("phase")
+                             and k != "required_fields" and isinstance(v, (str, int, float, bool))}
 
             if collected:
                 await journey_engine.save_collected(client_id, collected)
 
         updates = {}
         if result.get("advanced") or result.get("phase_completed"):
-            old_phase = journey_context.get("current_phase_id")
             old_agent = journey_context.get("current_agent_id")
 
             new_context = await journey_engine.get_client_journey(client_id)
