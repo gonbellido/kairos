@@ -17,6 +17,26 @@ from kairos.db.models import (
 _utcnow = lambda: datetime.now(tz=timezone.utc)
 logger = logging.getLogger(__name__)
 
+
+def _humanize_delta(delta) -> str:
+    """Return human-readable time delta in Spanish."""
+    total_seconds = int(delta.total_seconds())
+    if total_seconds < 3600:
+        mins = total_seconds // 60
+        return f"{mins} minuto{'s' if mins != 1 else ''}"
+    elif total_seconds < 86400:
+        hours = total_seconds // 3600
+        return f"{hours} hora{'s' if hours != 1 else ''}"
+    elif total_seconds < 7 * 86400:
+        days = total_seconds // 86400
+        return f"{days} día{'s' if days != 1 else ''}"
+    elif total_seconds < 30 * 86400:
+        weeks = total_seconds // (7 * 86400)
+        return f"{weeks} semana{'s' if weeks != 1 else ''}"
+    else:
+        months = total_seconds // (30 * 86400)
+        return f"{months} mes{'es' if months != 1 else ''}"
+
 # Default journey templates (seeded on first run)
 DEFAULT_JOURNEYS = {
     "coaching": {
@@ -596,6 +616,29 @@ class JourneyEngine:
             return ""
 
         prompt = system_prompt
+
+        # K7: New session detection — inject resume block if gap > 6h
+        last_raw = cj_data.get("last_interaction_at")
+        if last_raw:
+            try:
+                last_dt = datetime.fromisoformat(last_raw) if isinstance(last_raw, str) else last_raw
+                if last_dt.tzinfo is None:
+                    last_dt = last_dt.replace(tzinfo=timezone.utc)
+                delta = _utcnow() - last_dt
+                if delta.total_seconds() > 6 * 3600:
+                    tiempo_str = _humanize_delta(delta)
+                    prompt = (
+                        f"## RETOMADA DE SESIÓN\n"
+                        f"El cliente retoma la conversación después de {tiempo_str}. "
+                        f"ANTES de continuar con tu objetivo habitual, debes:\n"
+                        f"1. Saludar cálidamente y reconocer que es un nuevo encuentro.\n"
+                        f"2. Hacer un breve recap de lo que ya trabajaron juntos "
+                        f"(usa los datos recolectados que aparecen más abajo).\n"
+                        f"3. Preguntar cómo está el cliente y si quiere continuar desde donde lo dejaron.\n"
+                        f"Solo después de ese saludo y confirmación, retoma tu objetivo normal de fase.\n\n"
+                    ) + prompt
+            except Exception:
+                pass
 
         # K6: Template placeholders
         prompt = prompt.replace("{{step_title}}", phase_data.get("name", ""))
