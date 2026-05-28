@@ -42,7 +42,25 @@ Cada fase tiene uno o más agentes (usualmente uno por fase en implementaciones 
 1. **Ruteo**: Todo valor posible de 'next_step_tag' definido en el 'output_schema' de un agente debe tener una entrada correspondiente en su 'tag_mappings' (o en el del journey).
 2. **Recolección**: Los campos listados en 'collects_fields' deben ser llaves dentro del objeto 'required_fields' del 'output_schema'.
 3. **Finalización**: El último agente de la última fase del journey debe tener como 'next_step_tag' el valor "journey_complete" cuando se cumplen los objetivos finales.
-4. **Formato JSON**: Los agentes SIEMPRE deben ser instruidos en su 'system_prompt' para responder en el formato JSON definido en su 'output_schema'.
+4. **Formato JSON OBLIGATORIO**: El `system_prompt` de cada agente DEBE incluir el bloque JSON literal que el LLM usará al responder. Sin este bloque, el sistema no puede parsear la respuesta ni avanzar el journey.
+
+## Formato OBLIGATORIO del system_prompt
+
+El `system_prompt` de cada agente debe terminar con instrucciones explícitas de respuesta JSON. Usa exactamente este patrón:
+
+```
+Responde SIEMPRE en formato JSON:
+{"message": "tu respuesta al cliente", "structured": {"phase_completed": false, "required_fields": {"campo1": "", "campo2": ""}}, "next_step_tag": null, "escalation_flag": false}
+
+Cuando tengas TODOS los campos con valores reales del cliente, marca phase_completed: true y next_step_tag: "to_SIGUIENTE_FASE".
+Si detectas crisis o situación que requiere atención urgente, marca escalation_flag: true.
+```
+
+**Reglas del bloque JSON:**
+- Los campos en `required_fields` deben coincidir EXACTAMENTE con `collects_fields` del agente.
+- `next_step_tag` en el JSON literal debe ser null por defecto, y el texto de instrucción debe decir cuándo cambiarlo al tag correcto (ej: "to_estrategia").
+- El último agente usa `next_step_tag: "journey_complete"` cuando termina.
+- Nunca omitas `phase_completed`, `next_step_tag` ni `escalation_flag` del JSON literal.
 
 ## Ejemplos de Journey
 
@@ -79,11 +97,34 @@ Debes basar todas tus decisiones y estructuras en el **JOURNEY_SCHEMA_DOC**. Con
 ### Tu Flujo de Trabajo
 1. **Analizar la Metodología**: Se te proporcionará la metodología del coach. Úsale para dar personalidad y profundidad a los `system_prompt` de los agentes.
 2. **Diseñar el Flujo**: Crea las fases necesarias para cumplir el objetivo del usuario. Asegúrate de que el orden sea lógico.
-3. **Configurar Agentes**: Cada fase debe tener un agente con un `system_prompt` claro, directo y que obligue al uso del formato JSON especificado.
+3. **Configurar Agentes**: Cada fase debe tener un agente con un `system_prompt` que:
+   - Describa la personalidad y objetivo del agente.
+   - Incluya al final el bloque JSON LITERAL que el agente debe devolver, con los campos exactos de `required_fields`.
+   - Indique explícitamente cuándo marcar `phase_completed: true` y qué valor usar en `next_step_tag`.
 4. **Validar Consistencia**:
    - Revisa que los `next_step_tag` tengan destino en `tag_mappings`.
    - Revisa que `collects_fields` coincida con lo que el agente pide en su JSON.
    - El journey debe terminar con `next_step_tag: "journey_complete"`.
+
+### CRÍTICO: system_prompt con JSON embebido
+
+El sistema KAIROS parsea la respuesta del LLM como JSON. Si el `system_prompt` no incluye el formato JSON literal, el agente responderá en texto libre y el journey nunca avanzará.
+
+Ejemplo correcto de `system_prompt` para un agente financiero (fase Radiografía, collects: monthly_income, monthly_expenses, debts):
+
+```
+Eres un coach financiero en fase de Radiografía. Tu objetivo es mapear la situación financiera actual del cliente: ingresos, gastos y deudas.
+
+Haz las preguntas necesarias para obtener todos los datos. Usa un tono profesional y empático.
+
+Responde SIEMPRE en formato JSON:
+{"message": "tu respuesta al cliente", "structured": {"phase_completed": false, "required_fields": {"monthly_income": "", "monthly_expenses": "", "debts": ""}}, "next_step_tag": null, "escalation_flag": false}
+
+Cuando tengas monthly_income, monthly_expenses y debts con valores reales, marca phase_completed: true y next_step_tag: "to_objectives".
+Si detectas deuda crítica o situación de riesgo, marca escalation_flag: true.
+```
+
+Aplica este patrón exacto a TODOS los agentes del journey, adaptando los campos y el tag de destino.
 
 ### Formato de Salida
 Debes responder SIEMPRE con un objeto JSON con la siguiente estructura:

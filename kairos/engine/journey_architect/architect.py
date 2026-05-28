@@ -151,6 +151,7 @@ class JourneyArchitect:
             phase_id = phase["id"]
 
             for agent_spec in phase_spec.get("agents", []):
+                tag_map = agent_spec.get("tag_mappings", {})
                 await self.journey_engine.add_agent(
                     journey_id=journey_id,
                     phase_id=phase_id,
@@ -161,7 +162,8 @@ class JourneyArchitect:
                     instructions=agent_spec.get("instructions", ""),
                     collects_fields=agent_spec.get("collects_fields", []),
                     output_schema=agent_spec.get("output_schema", {}),
-                    tag_mappings=agent_spec.get("tag_mappings", {})
+                    tag_mappings=tag_map,
+                    allowed_tags=list(tag_map.keys()),
                 )
 
         return journey_id
