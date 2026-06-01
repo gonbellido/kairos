@@ -639,7 +639,11 @@ function openVoiceMode() {
 }
 
 function closeVoiceMode() {
+    voiceActive = false;
+    stopListening();
+    stopSpeaking();
     disconnectLiveKit();
+    voiceOverlay.classList.remove('active');
 }
 
 function toggleListening() {
@@ -810,9 +814,12 @@ async function toggleLiveKitCall() {
         transcript.textContent = 'Agente de voz activo';
     } catch (e) {
         console.error('[LK] Error:', e);
-        statusText.textContent = 'Error: ' + e.message;
+        // Fallback to browser-based voice mode
+        statusText.textContent = 'Modo navegador (sin LiveKit)';
         micBtn.textContent = '🎤';
-        setTimeout(() => overlay.classList.remove('active'), 3000);
+        setVoiceState('idle');
+        voiceStatusText.textContent = 'Toca el micrófono para hablar';
+        setTimeout(startListening, 500);
     }
 }
 
