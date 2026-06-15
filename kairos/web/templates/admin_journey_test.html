@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="breadcrumb"><a href="/admin/journeys">← Journeys</a></div>
+        <h1>Test: {{ journey.name }}</h1>
+        <p class="body" style="margin-top: var(--space-1);">Simula una conversacion de cliente para diagnosticar problemas en los prompts y el flujo del journey.</p>
+    </div>
+    <div class="page-header-right" style="display: flex; gap: 8px;">
+        <button onclick="skipAgent()" class="btn btn-ghost btn-sm" id="btn-skip">Saltar agente →</button>
+        <button onclick="resetTest()" class="btn btn-ghost btn-sm text-danger" id="btn-reset">Reiniciar</button>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-4); align-items: start;">
+    <!-- LEFT: Chat simulator -->
+    <div>
+        <div class="card" style="height: 500px; display: flex; flex-direction: column;">
+            <div class="flex items-center justify-between" style="padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);">
+                <span style="font-weight: 600; font-size: 14px;">Chat de prueba</span>
+                <span id="test-status" class="badge badge-neutral">Sin iniciar</span>
+            </div>
+            <div id="chat-messages" style="flex: 1; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3);">
+                <div class="text-sm" style="color: var(--text-muted); text-align: center; margin: auto;">
+                    Escribe un mensaje como si fueras el cliente para empezar.<br>
+                    <small>Cada mensaje llama al LLM y avanza el journey.</small>
+                </div>
+            </div>
+            <div style="padding: var(--space-3); border-top: 1px solid var(--border-subtle);">
+                <div class="flex gap-2">
+                    <input type="text" id="test-input" class="input" placeholder="Escribe como cliente..." style="flex: 1;" onkeydown="if(event.key==='Enter')sendMessage()">
+                    <button onclick="sendMessage()" class="btn btn-primary btn-sm" id="btn-send">Enviar</button>
+                </div>
+                <div id="test-info" class="text-xs mt-2" style="color: var(--text-muted);">
+                    Agente actual: <span id="test-agent">—</span> · Fase: <span id="test-phase">—</span> · Turnos: <span id="test-turns">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Journey map + diagnostics -->
+    <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <!-- Journey Map -->
+        <div class="card" style="padding: var(--space-4);">
+            <h3 style="font-size: 14px; margin-bottom: var(--space-3);">Mapa del Journey</h3>
+            <div id="journey-map">
+                {% for p in (journey.phases or [])|sort(attribute='order_index') %}
+                <div class="phase-group" data-phase="{{ p.id }}" style="margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-subtle); {% if loop.last %}border-bottom: none;{% endif %}">
+                    <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px;">
+                        <span class="phase-dot"></span> {{ p.name }}
+                    </div>
+                    <div class="text-xs" style="color: var(--text-muted); margin-bottom: 6px;">{{ p.objective[:80] }}</div>
+                    {% set phase_agents = (journey.agents or [])|selectattr('phase_id', 'equalto', p.id)|list %}
+                    {% for a in phase_agents|sort(attribute='order_index') %}
+                    <div class="agent-row flex items-center gap-2" data-agent="{{ a.id }}" style="padding: 2px 0; font-size: 12px;">
+                        <span class="agent-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); display: inline-block; flex-shrink: 0;"></span>
+                        <span>{{ a.name }}</span>
+                        {% if a.collects_fields %}
+                        <span class="text-xs" style="color: var(--text-muted);">({{ a.collects_fields|length }} campos)</span>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Turn details -->
+        <div class="card" style="padding: var(--space-4);">
+            <h3 style="font-size: 14px; margin-bottom: var(--space-3);">Ultimo turno</h3>
+            <div id="turn-detail" class="text-sm" style="color: var(--text-muted);">
+                Sin datos
+            </div>
+        </div>
+
+        <!-- Report -->
+        <div id="report-card" class="card hidden" style="padding: var(--space-4);">
+            <div class="flex items-center justify-between mb-3">
+                <h3 style="font-size: 14px;">Informe de diagnostico</h3>
+                <button onclick="closeReport()" class="btn btn-ghost btn-sm">&times;</button>
+            </div>
+            <div id="report-content"></div>
+        </div>
+
+        <button onclick="generateReport()" class="btn btn-teal btn-sm w-full" id="btn-report" disabled>
+            Generar informe de diagnostico
+        </button>
+    </div>
+</div>
+
+<script>
+const JOURNEY_ID = '{{ journey.id }}';
+let sessionId = '';
+const collectedByAgent = {};
+
+// ── Start test ──
+async function startTest() {
+    const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/start`, {method:'POST'});
+    const d = await r.json();
+    if (!d.ok) { alert('Error: ' + d.error); return; }
+    sessionId = d.session_id;
+    document.getElementById('test-status').textContent = 'Activo';
+    document.getElementById('test-status').className = 'badge badge-teal';
+    document.getElementById('btn-report').disabled = false;
+    updateState(d.state);
+}
+
+function updateState(state) {
+    if (!state) return;
+    document.getElementById('test-agent').textContent = state.current_agent_name || '—';
+    document.getElementById('test-phase').textContent = state.current_phase_name || '—';
+    document.getElementById('test-turns').textContent = state.turns_count || 0;
+
+    if (state.status === 'completed') {
+        document.getElementById('test-status').textContent = 'Completado';
+        document.getElementById('test-status').className = 'badge badge-teal';
+        document.getElementById('btn-send').disabled = true;
+    }
+
+    // Highlight current agent in map
+    document.querySelectorAll('.agent-row').forEach(el => {
+        el.style.fontWeight = 'normal';
+        el.querySelector('.agent-status-dot').style.background = 'var(--border-default)';
+    });
+    const cur = document.querySelector(`.agent-row[data-agent="${state.current_agent_id}"]`);
+    if (cur) {
+        cur.style.fontWeight = '600';
+        cur.querySelector('.agent-status-dot').style.background = 'var(--accent-teal)';
+    }
+}
+
+// ── Send message ──
+async function sendMessage() {
+    const input = document.getElementById('test-input');
+    const msg = input.value.trim();
+    if (!msg || !sessionId) return;
+    input.value = '';
+    input.disabled = true;
+    document.getElementById('btn-send').disabled = true;
+
+    appendChatMsg('user', msg);
+
+    try {
+        const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/message`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({session_id: sessionId, message: msg})
+        });
+        const d = await r.json();
+        if (!d.ok) { appendChatMsg('error', d.error); return; }
+
+        const turn = d.turn;
+        appendChatMsg('agent', turn.response, turn);
+        updateTurnDetail(turn);
+        updateState(d.state);
+
+        // Track collected fields per agent
+        const aid = turn.agent_id;
+        if (!collectedByAgent[aid]) collectedByAgent[aid] = new Set();
+        for (const f of Object.keys(turn.collected_fields || {})) collectedByAgent[aid].add(f);
+
+        markAgentProgress(aid, turn.collected_fields, turn.missing_fields, turn.expected_fields);
+    } finally {
+        input.disabled = false;
+        document.getElementById('btn-send').disabled = false;
+        input.focus();
+    }
+}
+
+function appendChatMsg(role, text, turn) {
+    const container = document.getElementById('chat-messages');
+    const div = document.createElement('div');
+    div.style.maxWidth = '85%';
+    div.style.alignSelf = role === 'user' ? 'flex-end' : 'flex-start';
+    div.style.padding = '8px 12px';
+    div.style.borderRadius = '10px';
+    div.style.fontSize = '13px';
+    div.style.lineHeight = '1.4';
+    div.style.wordBreak = 'break-word';
+
+    if (role === 'user') {
+        div.style.background = 'var(--accent-teal)';
+        div.style.color = 'white';
+        div.textContent = text;
+    } else if (role === 'error') {
+        div.style.background = 'var(--danger)';
+        div.style.color = 'white';
+        div.textContent = 'ERROR: ' + text;
+    } else {
+        div.style.background = 'var(--bg-tertiary)';
+        div.style.color = 'var(--text-primary)';
+        // Extract clean message
+        let displayText = text;
+        try {
+            const clean = text.trim();
+            if (clean.startsWith('```')) {
+                const inner = clean.split('\n').slice(1).join('\n').replace(/```\s*$/, '');
+                const parsed = JSON.parse(inner);
+                displayText = parsed.message || text;
+            } else {
+                const parsed = JSON.parse(clean);
+                displayText = parsed.message || text;
+            }
+        } catch(e) {}
+        div.textContent = displayText;
+
+        if (turn && turn.collected_fields && Object.keys(turn.collected_fields).length > 0) {
+            const meta = document.createElement('div');
+            meta.style.fontSize = '10px';
+            meta.style.marginTop = '4px';
+            meta.style.color = 'var(--text-muted)';
+            meta.textContent = 'Recolectado: ' + Object.keys(turn.collected_fields).join(', ');
+            div.appendChild(meta);
+        }
+        if (turn && turn.json_parse_error) {
+            const errDiv = document.createElement('div');
+            errDiv.style.fontSize = '10px';
+            errDiv.style.marginTop = '4px';
+            errDiv.style.color = 'var(--danger)';
+            errDiv.textContent = 'JSON parse error: ' + turn.json_parse_error;
+            div.appendChild(errDiv);
+        }
+        if (turn && turn.advancement && turn.advancement.advanced) {
+            const advDiv = document.createElement('div');
+            advDiv.style.fontSize = '10px';
+            advDiv.style.marginTop = '4px';
+            advDiv.style.color = 'var(--accent-teal)';
+            advDiv.textContent = 'AVANZO →';
+            div.appendChild(advDiv);
+        }
+    }
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function updateTurnDetail(turn) {
+    const el = document.getElementById('turn-detail');
+    let html = `<div><strong>Agente:</strong> ${turn.agent_name}</div>`;
+    html += `<div><strong>Fase:</strong> ${turn.phase_name}</div>`;
+    html += `<div><strong>Duracion:</strong> ${turn.duration_ms.toFixed(0)}ms</div>`;
+
+    if (turn.collected_fields && Object.keys(turn.collected_fields).length > 0) {
+        html += `<div class="mt-2"><strong>Campos recolectados:</strong></div>`;
+        for (const [k, v] of Object.entries(turn.collected_fields)) {
+            html += `<div class="text-xs" style="color: var(--accent-teal);">+ ${k}: ${String(v).substring(0, 60)}</div>`;
+        }
+    }
+    if (turn.missing_fields && turn.missing_fields.length > 0) {
+        html += `<div class="mt-1"><strong style="color: var(--danger);">Pendientes:</strong> ${turn.missing_fields.join(', ')}</div>`;
+    }
+    if (turn.expected_fields && turn.expected_fields.length > 0) {
+        html += `<div class="mt-1"><strong>Esperados:</strong> ${turn.expected_fields.join(', ')}</div>`;
+    }
+
+    if (turn.error) {
+        html += `<div class="mt-2" style="color: var(--danger);"><strong>Error:</strong> ${turn.error}</div>`;
+    }
+    if (turn.json_parse_error) {
+        html += `<div class="mt-2" style="color: var(--danger);"><strong>JSON error:</strong> ${turn.json_parse_error}</div>`;
+    }
+
+    // Prompt preview (truncated)
+    if (turn.prompt_sent) {
+        html += `<details class="mt-2"><summary class="text-xs" style="cursor:pointer; color:var(--text-muted);">Ver prompt enviado (${turn.prompt_sent.length} chars)</summary><pre class="text-xs mt-1" style="background:var(--bg-tertiary); padding:8px; border-radius:6px; max-height:200px; overflow:auto; white-space:pre-wrap;">${escapeHtml(turn.prompt_sent.substring(0, 2000))}</pre></details>`;
+    }
+    if (turn.advancement) {
+        html += `<details class="mt-2"><summary class="text-xs" style="cursor:pointer; color:var(--text-muted);">Ver avance</summary><pre class="text-xs mt-1" style="background:var(--bg-tertiary); padding:8px; border-radius:6px;">${escapeHtml(JSON.stringify(turn.advancement, null, 2))}</pre></details>`;
+    }
+
+    el.innerHTML = html;
+}
+
+function markAgentProgress(agentId, collected, missing, expected) {
+    const row = document.querySelector(`.agent-row[data-agent="${agentId}"]`);
+    if (!row) return;
+    const dot = row.querySelector('.agent-status-dot');
+    if (!dot) return;
+
+    const total = (expected || []).length;
+    const have = total - (missing || []).length;
+    if (total === 0) {
+        dot.style.background = 'var(--border-default)';
+    } else if (have === total) {
+        dot.style.background = 'var(--accent-teal)'; // green: all done
+    } else if (have > 0) {
+        dot.style.background = '#eab308'; // yellow: partial
+    } else {
+        dot.style.background = 'var(--danger)'; // red: nothing collected
+    }
+}
+
+// ── Skip agent ──
+async function skipAgent() {
+    if (!sessionId) return;
+    const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/skip`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: sessionId})
+    });
+    const d = await r.json();
+    if (d.ok) updateState(d.state);
+}
+
+// ── Reset ──
+async function resetTest() {
+    if (!sessionId) return;
+    if (!confirm('Reiniciar el test? Se perdera todo el progreso.')) return;
+    const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/reset`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: sessionId})
+    });
+    sessionId = '';
+    document.getElementById('test-status').textContent = 'Sin iniciar';
+    document.getElementById('test-status').className = 'badge badge-neutral';
+    document.getElementById('chat-messages').innerHTML = '<div class="text-sm" style="color: var(--text-muted); text-align: center; margin: auto;">Test reiniciado. Escribe para empezar de nuevo.</div>';
+    document.getElementById('turn-detail').innerHTML = 'Sin datos';
+    document.getElementById('btn-report').disabled = true;
+    document.getElementById('btn-send').disabled = false;
+    document.getElementById('report-card').classList.add('hidden');
+    document.querySelectorAll('.agent-status-dot').forEach(d => d.style.background = 'var(--border-default)');
+    document.querySelectorAll('.agent-row').forEach(el => el.style.fontWeight = 'normal');
+    startTest();
+}
+
+// ── Report ──
+async function generateReport() {
+    if (!sessionId) return;
+    const btn = document.getElementById('btn-report');
+    btn.disabled = true;
+    btn.textContent = 'Generando...';
+    try {
+        const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/report?session_id=${sessionId}`);
+        const d = await r.json();
+        if (!d.ok) { alert('Error: ' + d.error); return; }
+
+        const report = d.report;
+        const card = document.getElementById('report-card');
+        card.classList.remove('hidden');
+
+        let html = '';
+        const s = report.summary;
+
+        // Score gauge
+        const scoreColor = s.score >= 80 ? 'var(--accent-teal)' : s.score >= 50 ? '#eab308' : 'var(--danger)';
+        html += `<div style="text-align:center; margin-bottom:16px;">
+            <div style="font-size:36px; font-weight:700; color:${scoreColor};">${s.score}%</div>
+            <div class="text-xs" style="color:var(--text-muted);">Score de salud del journey</div>
+        </div>`;
+
+        html += `<div class="flex gap-2 mb-4 flex-wrap" style="justify-content:center;">
+            <span class="badge badge-teal">${s.agents_passed} agentes OK</span>
+            <span class="badge" style="background:#fef3c7; color:#92400e;">${s.agents_with_issues} con issues</span>
+            ${s.critical_issues > 0 ? `<span class="badge" style="background:var(--danger); color:white;">${s.critical_issues} criticos</span>` : ''}
+            ${s.high_issues > 0 ? `<span class="badge" style="background:#fecaca; color:#991b1b;">${s.high_issues} altos</span>` : ''}
+        </div>`;
+
+        // Agent results
+        for (const ar of report.agent_results || []) {
+            const statusIcon = ar.issues.length === 0 ? '✅' : ar.had_advancement ? '⚠️' : '❌';
+            html += `<div style="margin-bottom:12px; padding:8px; background:var(--bg-tertiary); border-radius:6px;">
+                <div style="font-weight:600; font-size:13px;">${statusIcon} ${ar.agent_name} <span class="text-xs" style="color:var(--text-muted);">(${ar.phase_name})</span></div>
+                <div class="text-xs" style="color:var(--text-muted);">Turns: ${ar.turns} · Campos: ${ar.fields_collected.length}/${ar.fields_expected.length} · Avance: ${ar.had_advancement ? 'Si' : 'No'} · JSON: ${ar.json_parse_success ? 'OK' : 'FALLOS'}</div>`;
+            if (ar.fields_missing.length > 0) {
+                html += `<div class="text-xs mt-1" style="color:var(--danger);">Faltantes: ${ar.fields_missing.join(', ')}</div>`;
+            }
+            for (const iss of ar.issues) {
+                const sevColors = {critical:'#ef4444', high:'#f97316', medium:'#eab308', low:'#94a3b8'};
+                html += `<div class="text-xs mt-1" style="padding:4px 6px; background:${sevColors[iss.severity]}15; border-left:2px solid ${sevColors[iss.severity]}; border-radius:3px;">
+                    <strong>${iss.type}:</strong> ${iss.suggestion}
+                </div>`;
+            }
+            html += `</div>`;
+        }
+
+        // Per-turn data
+        html += `<hr class="my-3" style="border-color:var(--border-subtle);">
+        <div class="text-xs" style="color:var(--text-muted);">
+            Journey: ${report.journey_name} v${report.journey_version} · Fases testeadas: ${report.phases_tested} · Agentes testeados: ${report.agents_tested} · Total turnos: ${report.total_turns}
+        </div>`;
+
+        document.getElementById('report-content').innerHTML = html;
+        card.scrollIntoView({behavior:'smooth'});
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generar informe de diagnostico';
+    }
+}
+
+function closeReport() {
+    document.getElementById('report-card').classList.add('hidden');
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+// ── Init ──
+startTest();
+</script>
+{% endblock %}

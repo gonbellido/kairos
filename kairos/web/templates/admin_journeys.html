@@ -38,6 +38,7 @@
                 <span class="text-sm" style="color: var(--text-muted);">{{ (j.phases or [])|length }} fases · {{ (j.agents or [])|length }} agentes</span>
                 <button onclick="editJourney('{{ j.id }}','{{ j.name }}','{{ j.description|replace('\n','\\n') }}','{{ j.objective|replace('\n','\\n') }}','{{ j.status }}')" class="btn btn-ghost btn-sm">Editar</button>
                 <button onclick="cloneJourney('{{ j.id }}')" class="btn btn-ghost btn-sm">Duplicar</button>
+                <a href="/admin/journeys/{{ j.id }}/test" class="btn btn-ghost btn-sm" style="color: var(--accent-teal); text-decoration: none;">Test</a>
                 <button onclick="deleteJourney('{{ j.id }}','{{ j.name }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
                 <button onclick="openPhaseModal('{{ j.id }}')" class="btn btn-primary btn-sm">+ Fase</button>
             </div>
