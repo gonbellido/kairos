@@ -125,6 +125,8 @@ class JourneyAgentModel(Base):
     output_schema = Column(JSON, default=dict)
     collects_fields = Column(JSON, default=list)
     tag_mappings = Column(JSON, default=dict)
+    max_turns = Column(Integer, default=0)
+    fallback_agent_id = Column(String, default="")
     version = Column(Integer, default=1)
     updated_at = Column(DateTime(timezone=True), default=lambda: _utcnow(), onupdate=lambda: _utcnow())
 

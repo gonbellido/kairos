@@ -982,6 +982,20 @@ class JourneyEngine:
             except Exception as e:
                 logger.debug("coordinator transition skipped: %s", e)
 
+        # F4: fallback — route to rescue agent if max_turns exceeded without advancement
+        if not result.get("advanced") and agent_data:
+            max_turns = agent_data.get("max_turns", 0) or 0
+            client_turn = turn_count or 0
+            if max_turns > 0 and client_turn >= max_turns:
+                fallback_id = agent_data.get("fallback_agent_id", "") or ""
+                if fallback_id:
+                    try:
+                        await self._jump_to_agent(client_id, fallback_id)
+                        result["advanced"] = True
+                        result["fallback_applied"] = True
+                    except Exception as e:
+                        logger.debug("fallback jump failed: %s", e)
+
         return result
 
     async def _jump_to_step(self, client_id: str, target_phase_id: str):
@@ -1009,6 +1023,36 @@ class JourneyEngine:
                                        phase_id=target_phase_id, agent_id=first_agent["id"] if first_agent else "",
                                        event_type="tag_jump",
                                        payload_data={"to_phase": target_phase_id})
+                s.add(ev)
+                await s.commit()
+
+    async def _jump_to_agent(self, client_id: str, target_agent_id: str):
+        """F4: Jump to a specific agent (not just the first of the phase)."""
+        cj_data = await self.get_client_journey(client_id)
+        if not cj_data:
+            return
+        journey = cj_data.get("journey", {})
+        agents = journey.get("agents", [])
+        target = next((a for a in agents if a["id"] == target_agent_id), None)
+        if not target:
+            return
+        async with self._sf() as s:
+            result = await s.execute(
+                select(ClientJourneyModel).where(ClientJourneyModel.client_id == client_id)
+            )
+            cj = result.scalars().first()
+            if cj:
+                cj.current_phase_id = target["phase_id"]
+                cj.current_agent_id = target_agent_id
+                cj.turn_count = 0
+                cj.last_interaction_at = _utcnow()
+                ev = JourneyEventModel(
+                    id=uuid4().hex[:12], client_id=client_id,
+                    coach_id=cj.coach_id, journey_id=cj.journey_id,
+                    phase_id=target["phase_id"], agent_id=target_agent_id,
+                    event_type="fallback_jump",
+                    payload_data={"to_agent": target_agent_id},
+                )
                 s.add(ev)
                 await s.commit()
 
@@ -1132,6 +1176,8 @@ class JourneyEngine:
                 "output_schema": getattr(a, "output_schema", {}) or {},
                 "collects_fields": getattr(a, "collects_fields", []) or [],
                 "tag_mappings": getattr(a, "tag_mappings", {}) or {},
+                "max_turns": getattr(a, "max_turns", 0) or 0,
+                "fallback_agent_id": getattr(a, "fallback_agent_id", "") or "",
                 "version": getattr(a, "version", 1)}
 
     def _client_journey_to_dict(self, cj: ClientJourneyModel) -> dict:

@@ -2,6 +2,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from kairos.engine.journey_coordinator import JourneyCoordinator
+from kairos.engine.journey_engine import JourneyEngine
+from kairos.db.models import ClientJourneyModel
 
 
 def _make_transition(journey_id="j1", from_phase="p1", to_phase="p2",
@@ -126,3 +128,49 @@ async def test_complete_target():
     r = await c.resolve_transition("j1", "p1", {"collected": {}, "turn_count": 5, "objective_state": {}})
     assert r is not None
     assert r["to_phase_id"] == "__complete__"
+
+
+# ── F4: fallback / jump_to_agent ──
+
+def _mock_engine_sf():
+    sf = MagicMock()
+    sess = MagicMock()
+    sess.execute = AsyncMock()
+    sess.commit = AsyncMock()
+    sf.return_value.__aenter__ = AsyncMock(return_value=sess)
+    sf.return_value.__aexit__ = AsyncMock(return_value=False)
+    return sf, sess
+
+
+@pytest.mark.asyncio
+async def test_jump_to_agent_updates_cj():
+    sf, sess = _mock_engine_sf()
+    mock_cj = MagicMock(spec=ClientJourneyModel)
+    mock_cj.coach_id = "c1"
+    mock_cj.journey_id = "j1"
+    result = MagicMock()
+    result.scalars.return_value.first.return_value = mock_cj
+    sess.execute = AsyncMock(return_value=result)
+
+    je = JourneyEngine(sf)
+    je.get_client_journey = AsyncMock(return_value={
+        "journey": {"agents": [{"id": "a_tgt", "phase_id": "p_tgt", "name": "R"}]}
+    })
+    await je._jump_to_agent("c1", "a_tgt")
+
+    assert mock_cj.current_phase_id == "p_tgt"
+    assert mock_cj.current_agent_id == "a_tgt"
+    assert mock_cj.turn_count == 0
+    sess.commit.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_jump_to_agent_missing_agent_noops():
+    sf, sess = _mock_engine_sf()
+    je = JourneyEngine(sf)
+    je.get_client_journey = AsyncMock(return_value={
+        "journey": {"agents": []}
+    })
+    # Should not raise
+    await je._jump_to_agent("c1", "a_missing")
+    sess.commit.assert_not_called()
