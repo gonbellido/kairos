@@ -108,6 +108,23 @@ services:
         reservations:
           memory: 256M
 
+  # ── WAHA — WhatsApp HTTP API ──
+  waha:
+    image: devlikeapro/waha-plus:latest
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      WAHA_API_KEY: ${WAHA_API_KEY}
+      WAHA_DASHBOARD_USERNAME: ${WAHA_DASHBOARD_USERNAME}
+      WAHA_DASHBOARD_PASSWORD: ${WAHA_DASHBOARD_PASSWORD}
+      WHATSAPP_DEFAULT_ENGINE: NOWEB
+      WHATSAPP_HOOK_URL: http://app:8000/api/v1/waha/webhook
+      WHATSAPP_HOOK_EVENTS: message
+    volumes:
+      - waha_sessions:/app/sessions
+    networks: [kairos_net]
+
   # ── Qdrant Vector DB ──
   qdrant:
     image: qdrant/qdrant:v1.13.6
@@ -192,3 +209,4 @@ volumes:
   qdrant_data:
   postgres_data:
   minio_data:
+  waha_sessions:

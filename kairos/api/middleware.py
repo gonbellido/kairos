@@ -28,7 +28,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                                               "/api/v1/upload", "/api/v1/materials", "/api/v1/coach",
                                               "/api/v1/chat", "/api/v1/settings", "/api/v1/clients",
                                               "/api/v1/journeys", "/api/v1/architect", "/api/v1/voice",
-                                              "/api/v1/test"]):
+                                              "/api/v1/waha", "/api/v1/test"]):
             return await call_next(request)
 
         if expected:
