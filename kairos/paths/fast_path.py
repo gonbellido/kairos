@@ -18,12 +18,14 @@ async def run(
     classifier_result=None,
     needs_memory: bool = False,
     memory_hits: list = None,
+    capture: dict | None = None,
 ) -> str:
     """Fast path with LLM-driven data collection via DATA:{} tag."""
 
     prompt = ""
     collected = {}
     collects_fields = []
+    agent_data = None
 
     if journey_engine and client_id:
         try:
@@ -96,22 +98,39 @@ async def run(
             collected.update(inferred)
             await _update_collected(journey_engine, client_id, collected)
 
+    # Keep the RAW LLM response (JSON) for unified advancement logic
+    raw_response = response_text
+    if capture is not None:
+        capture["raw_response"] = raw_response
+
     # Clean up: extract message text, strip DATA tags
     response_text = _clean_response(response_text)
 
-    # Check if enough data collected → advance (5+ is enough)
-    if journey_engine and client_id and collects_fields and collected:
+    # Unified advancement: delegate to the shared engine logic (tags + phase_completed),
+    # same path as the graph/chat/stream flows. Handles non-linear tag jumps.
+    advanced = False
+    if journey_engine and client_id and agent_data:
+        try:
+            va = await journey_engine.validate_and_advance(client_id, raw_response, agent_data)
+            advanced = bool(va.get("advanced") or va.get("phase_completed"))
+            if advanced:
+                logger.info("fast_path: advanced via validate_and_advance (tags=%s)",
+                            va.get("suggested_tags"))
+        except Exception as e:
+            logger.warning("fast_path: validate_and_advance failed: %s", e)
+
+    # Safety net: advance by field-count threshold if tag logic did not advance
+    if not advanced and journey_engine and client_id and collects_fields and collected:
         expected = [f.replace('_', '').lower() for f in collects_fields]
         data_count = len([v for k, v in collected.items()
                          if k.replace('_', '').lower() in expected and v and not k.startswith("_")])
         threshold = min(len(collects_fields), 5)
-        logger.info("fast_path advance check: %d/%d fields (need %d), collects=%s, expected=%s",
-                     data_count, len(collects_fields), threshold, collects_fields, expected)
-        logger.info("fast_path advance check: %d/%d fields (need %d)", data_count, len(collects_fields), threshold)
+        logger.info("fast_path advance check: %d/%d fields (need %d)",
+                    data_count, len(collects_fields), threshold)
         if data_count >= threshold:
             try:
                 await journey_engine.advance_client(client_id)
-                logger.info("Journey phase completed: %d fields → ADVANCED", data_count)
+                logger.info("fast_path: advanced via field-count safety net (%d fields)", data_count)
             except Exception as e:
                 logger.warning("Journey advance failed: %s", e)
         else:
@@ -224,8 +243,9 @@ async def _update_collected(journey_engine, client_id: str, collected: dict) -> 
     except Exception as e:
         # Fallback: direct DB update if save_collected not available
         try:
-            from kairos.db.models import ClientJourneyModel
             from sqlalchemy import update
+
+            from kairos.db.models import ClientJourneyModel
             sf = journey_engine._sf
             async with sf() as s:
                 await s.execute(

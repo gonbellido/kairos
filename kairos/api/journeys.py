@@ -7,8 +7,8 @@ No YAML files needed. Everything lives in PostgreSQL.
 import json
 import logging
 from uuid import uuid4
-from fastapi import APIRouter, Request, HTTPException
-from fastapi.responses import JSONResponse
+
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -76,8 +76,9 @@ def _row_to_dict(row) -> dict:
 
 @router.get("/coach/{coach_id}/journeys")
 async def list_journeys(coach_id: str, req: Request):
-    from kairos.db.models import JourneyModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyModel
     sf = _get_sf(req)
     async with sf() as s:
         result = await s.execute(
@@ -103,8 +104,9 @@ async def create_journey(coach_id: str, body: JourneyCreate, req: Request):
 
 @router.patch("/journeys/{journey_id}")
 async def update_journey(journey_id: str, body: JourneyUpdate, req: Request):
-    from kairos.db.models import JourneyModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyModel
     sf = _get_sf(req)
     async with sf() as s:
         result = await s.execute(select(JourneyModel).where(JourneyModel.id == journey_id))
@@ -123,8 +125,9 @@ async def update_journey(journey_id: str, body: JourneyUpdate, req: Request):
 
 @router.delete("/journeys/{journey_id}")
 async def delete_journey(journey_id: str, req: Request):
-    from kairos.db.models import JourneyModel, ClientJourneyModel
     from sqlalchemy import select
+
+    from kairos.db.models import ClientJourneyModel, JourneyModel
     sf = _get_sf(req)
     async with sf() as s:
         # Check no active clients
@@ -150,8 +153,9 @@ async def delete_journey(journey_id: str, req: Request):
 
 @router.get("/journeys/{journey_id}/phases")
 async def list_phases(journey_id: str, req: Request):
-    from kairos.db.models import JourneyPhaseModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         result = await s.execute(
@@ -164,8 +168,9 @@ async def list_phases(journey_id: str, req: Request):
 
 @router.post("/journeys/{journey_id}/phases")
 async def create_phase(journey_id: str, body: PhaseCreate, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
+    from kairos.db.models import JourneyAgentModel, JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         # Get next order_index
@@ -200,8 +205,9 @@ async def create_phase(journey_id: str, body: PhaseCreate, req: Request):
 
 @router.put("/journeys/{journey_id}/phases/{phase_id}")
 async def update_phase(journey_id: str, phase_id: str, body: PhaseUpdate, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyAgentModel, JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         phase_r = await s.execute(select(JourneyPhaseModel).where(JourneyPhaseModel.id == phase_id))
@@ -233,8 +239,9 @@ async def update_phase(journey_id: str, phase_id: str, body: PhaseUpdate, req: R
 
 @router.patch("/journeys/{journey_id}/phases/reorder")
 async def reorder_phases(journey_id: str, body: ReorderRequest, req: Request):
-    from kairos.db.models import JourneyPhaseModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         for i, phase_id in enumerate(body.order, start=1):
@@ -248,8 +255,9 @@ async def reorder_phases(journey_id: str, body: ReorderRequest, req: Request):
 
 @router.delete("/journeys/{journey_id}/phases/{phase_id}")
 async def delete_phase(journey_id: str, phase_id: str, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyAgentModel, JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         phase_r = await s.execute(select(JourneyPhaseModel).where(JourneyPhaseModel.id == phase_id))
@@ -268,8 +276,9 @@ async def delete_phase(journey_id: str, phase_id: str, req: Request):
 
 @router.get("/coach/{coach_id}/profile")
 async def get_coach_profile(coach_id: str, req: Request):
-    from kairos.db.models import CoachModel
     from sqlalchemy import select
+
+    from kairos.db.models import CoachModel
     sf = _get_sf(req)
     async with sf() as s:
         result = await s.execute(select(CoachModel).where(CoachModel.id == coach_id))
@@ -287,8 +296,9 @@ async def get_coach_profile(coach_id: str, req: Request):
 
 @router.put("/coach/{coach_id}/profile")
 async def update_coach_profile(coach_id: str, body: CoachProfileUpdate, req: Request):
-    from kairos.db.models import CoachModel
     from sqlalchemy import select
+
+    from kairos.db.models import CoachModel
     sf = _get_sf(req)
     async with sf() as s:
         result = await s.execute(select(CoachModel).where(CoachModel.id == coach_id))
@@ -315,8 +325,9 @@ async def update_coach_profile(coach_id: str, body: CoachProfileUpdate, req: Req
 
 @router.post("/journeys/{journey_id}/phases/{phase_id}/preview")
 async def preview_prompt(journey_id: str, phase_id: str, body: PreviewRequest, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyAgentModel
     sf = _get_sf(req)
     async with sf() as s:
         agent_r = await s.execute(select(JourneyAgentModel).where(JourneyAgentModel.phase_id == phase_id))
@@ -350,8 +361,9 @@ async def preview_prompt(journey_id: str, phase_id: str, body: PreviewRequest, r
 
 @router.get("/journeys/{journey_id}/validate")
 async def validate_journey(journey_id: str, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyAgentModel, JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         phases_r = await s.execute(select(JourneyPhaseModel).where(JourneyPhaseModel.journey_id == journey_id))
@@ -397,8 +409,9 @@ async def validate_journey(journey_id: str, req: Request):
 
 @router.get("/journeys/{journey_id}/available-variables")
 async def available_variables(journey_id: str, req: Request):
-    from kairos.db.models import JourneyPhaseModel, JourneyAgentModel
     from sqlalchemy import select
+
+    from kairos.db.models import JourneyAgentModel, JourneyPhaseModel
     sf = _get_sf(req)
     async with sf() as s:
         phases_r = await s.execute(
@@ -424,7 +437,7 @@ async def available_variables(journey_id: str, req: Request):
                 for f in fields:
                     client_vars[f] = f"Recolectado en fase '{phase.name}'"
 
-        from kairos.engine.journey_engine_v2 import COACH_VARIABLES, JOURNEY_VARIABLES
+        from kairos.engine.journey_engine import COACH_VARIABLES, JOURNEY_VARIABLES
         return {
             "always_available": {**COACH_VARIABLES, **JOURNEY_VARIABLES},
             "client_data": client_vars,

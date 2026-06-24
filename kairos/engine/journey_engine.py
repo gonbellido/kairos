@@ -3,19 +3,41 @@
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Any, Optional
 from uuid import uuid4
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from kairos.db.models import (
-    JourneyModel, JourneyPhaseModel, JourneyAgentModel,
-    ClientJourneyModel, ClientSharedProfileModel, JourneyEventModel,
+    ClientJourneyModel,
+    ClientSharedProfileModel,
+    JourneyAgentModel,
+    JourneyEventModel,
+    JourneyModel,
+    JourneyPhaseModel,
 )
 
 _utcnow = lambda: datetime.now(tz=timezone.utc)
 logger = logging.getLogger(__name__)
+
+
+# ── Template variables always available in agent prompts (used by the journeys API) ──
+
+COACH_VARIABLES = {
+    "directividad": "Nivel de directividad (0.0-1.0)",
+    "emocionalidad": "Nivel de empatía (0.0-1.0)",
+    "ritmo": "Velocidad del proceso (0.0-1.0)",
+    "coach_persona": "Descripción de personalidad del coach",
+}
+
+JOURNEY_VARIABLES = {
+    "journey_name": "Nombre del journey",
+    "phase_name": "Nombre de esta fase",
+    "phase_order": "Número de fase actual",
+    "total_phases": "Total de fases",
+    "progress_pct": "Porcentaje de avance (0-100)",
+    "pending_fields": "Campos aún no recolectados",
+}
 
 
 def _humanize_delta(delta) -> str:
@@ -916,7 +938,7 @@ class JourneyEngine:
         if not collected:
             return
 
-        from kairos.engine.vital_fields import normalize_collected, extract_vital_fields
+        from kairos.engine.vital_fields import extract_vital_fields, normalize_collected
         normalized = normalize_collected(collected)
         vital = extract_vital_fields(normalized)
 
