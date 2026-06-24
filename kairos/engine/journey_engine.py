@@ -942,6 +942,24 @@ class JourneyEngine:
                         journey_id = cj.journey_id or ""
                         current_phase_id = cj.current_phase_id or ""
                         coach_id = cj.coach_id or ""
+
+                        # Merge shared_profile data — validate_and_advance writes
+                        # collected fields there, not in client_journeys.collected_data.
+                        sp_result = await s.execute(
+                            select(ClientSharedProfileModel).where(
+                                ClientSharedProfileModel.client_id == client_id
+                            )
+                        )
+                        sp = sp_result.scalars().first()
+                        if sp and sp.profile_data:
+                            sp_data = sp.profile_data
+                            if isinstance(sp_data, str):
+                                try:
+                                    sp_data = json.loads(sp_data)
+                                except (json.JSONDecodeError, ValueError):
+                                    sp_data = {}
+                            collected = {**sp_data, **collected}
+
                         objective = await ObjectiveEvaluator().evaluate(agent_data, collected)
                         obj_state = dict(cj.objective_state or {})
                         obj_state[agent_data.get("id", "?")] = objective
