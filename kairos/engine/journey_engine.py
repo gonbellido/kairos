@@ -15,6 +15,7 @@ from kairos.db.models import (
     JourneyEventModel,
     JourneyModel,
     JourneyPhaseModel,
+    JourneyTransitionModel,
 )
 
 _utcnow = lambda: datetime.now(tz=timezone.utc)
@@ -1072,6 +1073,53 @@ class JourneyEngine:
                 )
                 s.add(ev)
                 await s.commit()
+
+    # ── Transition CRUD (F6 UI) ──
+
+    async def get_transitions(self, journey_id: str) -> list[dict]:
+        async with self._sf() as s:
+            result = await s.execute(
+                select(JourneyTransitionModel)
+                .where(JourneyTransitionModel.journey_id == journey_id)
+                .order_by(JourneyTransitionModel.priority.desc())
+            )
+            return [{c.name: getattr(t, c.name) for c in t.__table__.columns}
+                    for t in result.scalars().all()]
+
+    async def add_transition(self, journey_id: str, from_phase_id: str,
+                             to_phase_id: str, condition: dict,
+                             priority: int = 0) -> dict:
+        tid = uuid4().hex[:12]
+        async with self._sf() as s:
+            t = JourneyTransitionModel(
+                id=tid, journey_id=journey_id, from_phase_id=from_phase_id,
+                to_phase_id=to_phase_id, condition=condition,
+                priority=priority, is_active=True,
+            )
+            s.add(t)
+            await s.commit()
+            return {c.name: getattr(t, c.name) for c in t.__table__.columns}
+
+    async def update_transition(self, transition_id: str, **fields) -> dict | None:
+        async with self._sf() as s:
+            t = await s.get(JourneyTransitionModel, transition_id)
+            if not t:
+                return None
+            for k, v in fields.items():
+                if hasattr(t, k) and v is not None:
+                    setattr(t, k, v)
+            t.updated_at = _utcnow()
+            await s.commit()
+            return {c.name: getattr(t, c.name) for c in t.__table__.columns}
+
+    async def delete_transition(self, transition_id: str) -> bool:
+        async with self._sf() as s:
+            t = await s.get(JourneyTransitionModel, transition_id)
+            if not t:
+                return False
+            await s.delete(t)
+            await s.commit()
+            return True
 
     async def save_collected(self, client_id: str, collected: dict) -> None:
         """Save collected data to both client_journeys and shared_profiles atomically.

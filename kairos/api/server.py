@@ -23,7 +23,7 @@ from kairos.engine.journey_engine import JourneyEngine
 from kairos.api.middleware import AuthMiddleware
 from kairos.api.rate_limiter import RateLimiter
 from kairos.db.session import create_session_factory
-from .routes import chat, stream, clients, feedback, sessions, upload, materials, coach_assist, web, monitor, voice, journey_test
+from .routes import chat, stream, clients, feedback, sessions, upload, materials, coach_assist, web, monitor, voice, journey_test, journey_transitions
 from .routes import settings as settings_routes
 from . import architect as architect_routes
 
@@ -247,6 +247,7 @@ def create_app() -> FastAPI:
     app.include_router(voice.router, prefix="/api/v1")
     app.include_router(architect_routes.router)
     app.include_router(journey_test.router)
+    app.include_router(journey_transitions.router)
 
     from pathlib import Path
     from fastapi.staticfiles import StaticFiles

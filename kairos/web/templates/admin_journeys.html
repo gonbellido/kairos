@@ -39,6 +39,7 @@
                 <button onclick="editJourney('{{ j.id }}','{{ j.name }}','{{ j.description|replace('\n','\\n') }}','{{ j.objective|replace('\n','\\n') }}','{{ j.status }}')" class="btn btn-ghost btn-sm">Editar</button>
                 <button onclick="cloneJourney('{{ j.id }}')" class="btn btn-ghost btn-sm">Duplicar</button>
                 <a href="/admin/journeys/{{ j.id }}/test" class="btn btn-ghost btn-sm" style="color: var(--accent-teal); text-decoration: none;">Test</a>
+                <a href="#" onclick="event.preventDefault();openTransitions('{{ j.id }}')" class="btn btn-ghost btn-sm" style="color: var(--accent-teal); text-decoration: none;">Transiciones</a>
                 <button onclick="deleteJourney('{{ j.id }}','{{ j.name }}')" class="btn btn-ghost btn-sm text-danger">Eliminar</button>
                 <button onclick="openPhaseModal('{{ j.id }}')" class="btn btn-primary btn-sm">+ Fase</button>
             </div>
@@ -131,9 +132,42 @@
     </form>
 </div></div>
 
+<!-- Transition Modal (F6) -->
+<div id="transition-modal" class="modal-overlay hidden"><div class="modal" style="max-width: 640px;">
+    <div class="modal-header"><h2 id="tr-modal-title">Transiciones</h2><button onclick="closeModals()" class="modal-close">&times;</button></div>
+    <input type="hidden" id="tr-jid">
+    <div id="tr-list" class="p-4 max-h-64 overflow-y-auto space-y-2">
+        <div class="text-sm" style="color: var(--text-muted);">Cargando...</div>
+    </div>
+    <div class="border-t p-4">
+        <h3 class="text-sm font-semibold mb-2">Nueva transición</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+            <div><label class="label text-xs">Desde fase</label><select id="tr-from" class="input text-sm"></select></div>
+            <div><label class="label text-xs">Destino</label><select id="tr-to" class="input text-sm"></select></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+            <div>
+                <label class="label text-xs">Tipo condición</label>
+                <select id="tr-cond-type" class="input text-sm" onchange="toggleCondParams()">
+                    <option value="turns">Turns (turn_count >= N)</option>
+                    <option value="field">Campo presente / igual</option>
+                    <option value="objective_met">Objetivo cumplido</option>
+                </select>
+            </div>
+            <div><label class="label text-xs">Prioridad</label><input id="tr-priority" type="number" class="input text-sm" value="0"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+            <div><label class="label text-xs" id="tr-param1-label">Min turns</label><input id="tr-param1" type="number" class="input text-sm" value="1"></div>
+            <div id="tr-param2-wrap" class="hidden"><label class="label text-xs">Valor (equals)</label><input id="tr-param2" class="input text-sm"></div>
+        </div>
+        <button onclick="addTransition()" class="btn btn-primary btn-sm w-full">Añadir transición</button>
+    </div>
+</div></div>
+
 <script>
 function closeModals(){document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.add('hidden'))}
 const _data={};
+const _journeys = {{ journeys|tojson }};
 {% for j in journeys %}{% for a in (j.agents or []) %}
 _data['{{ a.id }}']={name:'{{ a.name|replace("'","\\'") }}',role:'{{ a.role|replace("'","\\'") }}',goal:'{{ a.goal|replace("'","\\'") }}',system_prompt:'{{ a.system_prompt|replace("\\","\\\\")|replace("'","\\'")|replace("\n","\\n") }}',instructions:'{{ a.instructions|replace("\\","\\\\")|replace("'","\\'")|replace("\n","\\n") }}',allowed_tags:{{ a.allowed_tags|tojson if a.allowed_tags else '[]' }},output_schema:{{ a.output_schema|tojson if a.output_schema else '{}' }} };
 {% endfor %}{% endfor %}
@@ -155,6 +189,49 @@ document.getElementById('phase-form').addEventListener('submit',async e=>{e.prev
 function openAgentModal(jid,pid){document.getElementById('a-id').value='';document.getElementById('a-jid').value=jid;document.getElementById('a-pid').value=pid;document.getElementById('a-modal-title').textContent='Nuevo Agente';document.getElementById('a-submit').textContent='Crear';document.getElementById('a-name').value='';document.getElementById('a-role').value='';document.getElementById('a-goal').value='';document.getElementById('a-prompt').value='';document.getElementById('a-instr').value='';document.getElementById('a-tags').value='';document.getElementById('a-schema').value='';document.getElementById('agent-modal').classList.remove('hidden')}
 function openEditAgent(id){const d=_data[id]||{};document.getElementById('a-id').value=id;document.getElementById('a-jid').value='';document.getElementById('a-pid').value='';document.getElementById('a-modal-title').textContent='Editar Agente';document.getElementById('a-submit').textContent='Guardar';document.getElementById('a-name').value=d.name||'';document.getElementById('a-role').value=d.role||'';document.getElementById('a-goal').value=d.goal||'';document.getElementById('a-prompt').value=(d.system_prompt||'').replace(/\\n/g,'\n');document.getElementById('a-instr').value=(d.instructions||'').replace(/\\n/g,'\n');document.getElementById('a-tags').value=JSON.stringify(d.allowed_tags||[]);document.getElementById('a-schema').value=JSON.stringify(d.output_schema||{});document.getElementById('agent-modal').classList.remove('hidden')}
 document.getElementById('agent-form').addEventListener('submit',async e=>{e.preventDefault();const aid=document.getElementById('a-id').value;const url=aid?'/api/v1/journeys/agents/'+aid:'/api/v1/journeys/'+document.getElementById('a-jid').value+'/agents';const m=aid?'PUT':'POST';let tags=[];let schema={};try{tags=JSON.parse(document.getElementById('a-tags').value)}catch(e){}try{schema=JSON.parse(document.getElementById('a-schema').value)}catch(e){}const body={name:document.getElementById('a-name').value,role:document.getElementById('a-role').value,goal:document.getElementById('a-goal').value,system_prompt:document.getElementById('a-prompt').value,instructions:document.getElementById('a-instr').value,allowed_tags:tags,output_schema:schema};if(!aid){body.phase_id=document.getElementById('a-pid').value;body.order_index=0}const r=await fetch(url,{method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(r.ok)location.reload();else{const s=document.getElementById('a-status');s.classList.remove('hidden');s.textContent='Error';s.style.color='var(--danger)'}});
+
+// ── Transitions (F6) ──
+let _transitions=[];
+
+function nameForId(id){for(const j of _journeys){for(const p of (j.phases||[]))if(p.id===id)return p.name}return id}
+function targetLabel(to){if(!to)return '—';if(to==='__complete__')return 'Completar journey';if(to.startsWith('journey:')){const j=_journeys.find(j=>j.id===to.slice(8));return '↗ '+(j?j.name:to.slice(8))}return nameForId(to)||to}
+
+function openTransitions(jid){document.getElementById('tr-jid').value=jid;loadTransitions(jid);buildSelectors(jid);document.getElementById('transition-modal').classList.remove('hidden')}
+
+async function loadTransitions(jid){const r=await fetch('/api/v1/journeys/'+jid+'/transitions');_transitions=await r.json();renderTransitions()}
+
+function renderTransitions(){
+    const list=document.getElementById('tr-list');
+    if(!_transitions.length){list.innerHTML='<div class="text-sm" style="color:var(--text-muted);">Sin transiciones configuradas.</div>';return}
+    list.innerHTML=_transitions.map(t=>{
+        const c=JSON.stringify(t.condition||{}).replace(/"/g,'');
+        return `<div class="flex items-center justify-between p-2 bg-tertiary rounded border text-xs" style="margin-bottom:4px;">
+            <div><strong>${nameForId(t.from_phase_id)}</strong> → ${targetLabel(t.to_phase_id)}
+            <div style="color:var(--text-muted);">${c} · prioridad ${t.priority||0}</div></div>
+            <button onclick="deleteTransition('${t.id}')" class="text-danger border-none bg-none cursor-pointer" style="font-size:16px;">×</button>
+        </div>`
+    }).join('')
+}
+
+async function deleteTransition(tid){if(!confirm('¿Eliminar esta transición?'))return;await fetch('/api/v1/journeys/transitions/'+tid,{method:'DELETE'});loadTransitions(document.getElementById('tr-jid').value)}
+
+async function addTransition(){
+    const jid=document.getElementById('tr-jid').value;
+    const body={
+        from_phase_id:document.getElementById('tr-from').value,
+        to_phase_id:document.getElementById('tr-to').value,
+        condition:buildCondition(),
+        priority:parseInt(document.getElementById('tr-priority').value)||0
+    };
+    await fetch('/api/v1/journeys/'+jid+'/transitions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    loadTransitions(jid)
+}
+
+function buildCondition(){const t=document.getElementById('tr-cond-type').value;const c={type:t};if(t==='turns')c.min=parseInt(document.getElementById('tr-param1').value)||1;if(t==='field'){c.field=document.getElementById('tr-param1').value;c.op='present';const v=document.getElementById('tr-param2').value;if(v){c.op='equals';c.value=v}}if(t==='objective_met')c.min_confidence=parseFloat(document.getElementById('tr-param1').value)||0.8;return c}
+
+function toggleCondParams(){const t=document.getElementById('tr-cond-type').value;const l=document.getElementById('tr-param1-label');const i=document.getElementById('tr-param1');const w2=document.getElementById('tr-param2-wrap');if(t==='turns'){l.textContent='Min turns';i.type='number';i.value=1;w2.classList.add('hidden')}if(t==='field'){l.textContent='Campo';i.type='text';i.value='';i.placeholder='nombre_del_campo';w2.classList.remove('hidden')}if(t==='objective_met'){l.textContent='Min confianza';i.type='number';i.value=0.8;w2.classList.add('hidden')}}
+
+function buildSelectors(jid){const j=_journeys.find(j=>j.id===jid);const phases=(j&&j.phases)||[];const opts=phases.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');const toOpts=opts+'<option value="__complete__">Completar journey</option>';const jOpts=_journeys.filter(x=>x.id!==jid).map(x=>`<option value="journey:${x.id}">↗ ${x.name}</option>`).join('');document.getElementById('tr-from').innerHTML=opts;document.getElementById('tr-to').innerHTML=toOpts+jOpts}
 </script>
 <div id="architect-panel" style="position: fixed; right: -400px; top: 0; width: 400px; height: 100vh; background: var(--bg-primary); border-left: 1px solid var(--border-default); z-index: 1000; transition: right 0.3s ease; display: flex; flex-direction: column; box-shadow: -4px 0 15px rgba(0,0,0,0.1);">
     <div style="padding: var(--space-4); border-bottom: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;">
