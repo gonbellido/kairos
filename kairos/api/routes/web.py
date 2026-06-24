@@ -295,6 +295,7 @@ async def admin_journeys_page(req: Request):
         await je.seed_defaults()
 
     # Admin sees ALL journeys from all coaches
+    from datetime import datetime as dt
     from sqlalchemy import select
     from kairos.db.models import JourneyModel, JourneyPhaseModel, JourneyAgentModel
     sf = je._sf
@@ -304,16 +305,37 @@ async def admin_journeys_page(req: Request):
         )
         all_journeys = []
         for j in result.scalars().all():
-            d = {c.name: getattr(j, c.name) for c in j.__table__.columns}
+            d = {}
+            for c in j.__table__.columns:
+                v = getattr(j, c.name)
+                if isinstance(v, dt):
+                    v = v.isoformat()
+                d[c.name] = v
             # Load phases and agents for each journey
             pr = await s.execute(
                 select(JourneyPhaseModel).where(JourneyPhaseModel.journey_id == j.id).order_by(JourneyPhaseModel.order_index)
             )
-            d["phases"] = [{c.name: getattr(p, c.name) for c in p.__table__.columns} for p in pr.scalars().all()]
+            d["phases"] = []
+            for p in pr.scalars().all():
+                pd = {}
+                for c in p.__table__.columns:
+                    v = getattr(p, c.name)
+                    if isinstance(v, dt):
+                        v = v.isoformat()
+                    pd[c.name] = v
+                d["phases"].append(pd)
             ar = await s.execute(
                 select(JourneyAgentModel).where(JourneyAgentModel.journey_id == j.id).order_by(JourneyAgentModel.order_index)
             )
-            d["agents"] = [{c.name: getattr(a, c.name) for c in a.__table__.columns} for a in ar.scalars().all()]
+            d["agents"] = []
+            for a in ar.scalars().all():
+                ad = {}
+                for c in a.__table__.columns:
+                    v = getattr(a, c.name)
+                    if isinstance(v, dt):
+                        v = v.isoformat()
+                    ad[c.name] = v
+                d["agents"].append(ad)
             all_journeys.append(d)
 
     return _render(req, "admin_journeys.html", {"title": "Journeys", "coach": coach, "journeys": all_journeys})
