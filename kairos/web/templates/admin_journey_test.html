@@ -40,9 +40,12 @@
 
     <!-- RIGHT: Journey map + diagnostics -->
     <div style="display: flex; flex-direction: column; gap: var(--space-4);">
-        <!-- Journey Map -->
+        <!-- Journey Map (clickable agents) -->
         <div class="card" style="padding: var(--space-4);">
-            <h3 style="font-size: 14px; margin-bottom: var(--space-3);">Mapa del Journey</h3>
+            <div class="flex items-center justify-between mb-3">
+                <h3 style="font-size: 14px;">Mapa del Journey</h3>
+                <span class="text-xs" style="color: var(--text-muted);">Click en agente para saltar</span>
+            </div>
             <div id="journey-map">
                 {% for p in (journey.phases or [])|sort(attribute='order_index') %}
                 <div class="phase-group" data-phase="{{ p.id }}" style="margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-subtle); {% if loop.last %}border-bottom: none;{% endif %}">
@@ -52,7 +55,7 @@
                     <div class="text-xs" style="color: var(--text-muted); margin-bottom: 6px;">{{ p.objective[:80] }}</div>
                     {% set phase_agents = (journey.agents or [])|selectattr('phase_id', 'equalto', p.id)|list %}
                     {% for a in phase_agents|sort(attribute='order_index') %}
-                    <div class="agent-row flex items-center gap-2" data-agent="{{ a.id }}" style="padding: 2px 0; font-size: 12px;">
+                    <div class="agent-row flex items-center gap-2" data-agent="{{ a.id }}" data-phase="{{ p.id }}" style="padding: 3px 4px; font-size: 12px; cursor: pointer; border-radius: 4px;" onclick="jumpToAgent('{{ a.id }}')" title="Click para saltar a este agente">
                         <span class="agent-status-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); display: inline-block; flex-shrink: 0;"></span>
                         <span>{{ a.name }}</span>
                         {% if a.collects_fields %}
@@ -62,6 +65,17 @@
                     {% endfor %}
                 </div>
                 {% endfor %}
+            </div>
+        </div>
+
+        <!-- Data Flow -->
+        <div class="card" style="padding: var(--space-4);">
+            <div class="flex items-center justify-between mb-3">
+                <h3 style="font-size: 14px;">Flujo de Datos</h3>
+                <button onclick="loadDataFlow()" class="btn btn-ghost btn-sm text-xs">Refrescar</button>
+            </div>
+            <div id="dataflow-content" class="text-xs" style="color: var(--text-muted);">
+                Cargando...
             </div>
         </div>
 
@@ -103,6 +117,7 @@ async function startTest() {
     document.getElementById('test-status').className = 'badge badge-teal';
     document.getElementById('btn-report').disabled = false;
     updateState(d.state);
+    loadDataFlow();
 }
 
 function updateState(state) {
@@ -300,6 +315,51 @@ async function skipAgent() {
     });
     const d = await r.json();
     if (d.ok) updateState(d.state);
+}
+
+// ── Jump to agent ──
+async function jumpToAgent(agentId) {
+    if (!sessionId) return;
+    const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/jump`, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({session_id: sessionId, agent_id: agentId})
+    });
+    const d = await r.json();
+    if (d.ok) {
+        updateState(d.state);
+        document.getElementById('chat-messages').innerHTML += '<div class="text-xs" style="color:var(--accent-teal); text-align:center; padding:4px;">Saltado a agente: ' + d.state.current_agent_name + '</div>';
+    }
+}
+
+// ── Data flow ──
+async function loadDataFlow() {
+    if (!sessionId) return;
+    const r = await fetch(`/api/v1/journeys/${JOURNEY_ID}/test/dataflow?session_id=${sessionId}`);
+    const d = await r.json();
+    const el = document.getElementById('dataflow-content');
+    if (!d.ok) { el.innerHTML = 'Error cargando data flow'; return; }
+
+    let html = '';
+    for (const f of d.flow || []) {
+        const icon = f.issue === 'redundant' ? '⚠️' : f.issue === 'partial_redundant' ? '🔶' : '✅';
+        html += `<div style="margin-bottom:6px; padding:4px 6px; border-radius:4px; border-left:2px solid ${f.issue === 'ok' ? 'var(--accent-teal)' : f.issue === 'partial_redundant' ? '#eab308' : '#ef4444'}; background:var(--bg-tertiary);">`;
+        html += `<div style="font-weight:600;">${f.agent_name} <span style="color:var(--text-muted);">(${f.phase_name})</span></div>`;
+        if (f.collects_fields.length > 0) {
+            html += `<div>Collects: ${f.collects_fields.join(', ')}</div>`;
+        } else {
+            html += `<div style="color:var(--text-muted);">No recolecta campos</div>`;
+        }
+        if (f.already_available && f.already_available.length > 0) {
+            html += `<div style="color:#eab308;">Ya disponible: ${f.already_available.join(', ')}</div>`;
+        }
+        if (f.new_fields && f.new_fields.length > 0) {
+            html += `<div style="color:var(--accent-teal);">Nuevo: ${f.new_fields.join(', ')}</div>`;
+        }
+        html += `</div>`;
+    }
+    html += `<div class="mt-2 text-xs" style="color:var(--text-muted);">Total campos unicos: ${(d.total_fields || []).join(', ') || 'ninguno'}</div>`;
+    el.innerHTML = html;
 }
 
 // ── Reset ──

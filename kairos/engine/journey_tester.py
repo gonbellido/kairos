@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 _utcnow = lambda: datetime.now(tz=timezone.utc)
 
 
+def _clean_response_text(response: str) -> str:
+    clean = response.strip()
+    if clean.startswith("```"):
+        clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+    return clean
+
+
 @dataclass
 class TestTurn:
     step: int
@@ -45,6 +52,8 @@ class TestSession:
     turns: list = field(default_factory=list)
     current_phase_id: str = ""
     current_agent_id: str = ""
+    current_phase_name: str = ""
+    current_agent_name: str = ""
     created_at: str = ""
 
 
@@ -82,81 +91,118 @@ class JourneyTester:
         if not session:
             raise ValueError("Session not found")
 
-        cj = await self._je.get_client_journey(session.client_id)
-        if not cj or not cj.get("journey"):
+        from kairos.paths.fast_path import run as fast_run
+
+        client_id = session.client_id
+        cj_before = await self._je.get_client_journey(client_id)
+        if not cj_before or not cj_before.get("journey"):
             raise ValueError("Client journey not found")
 
-        journey = cj["journey"]
+        journey = cj_before["journey"]
         agents = journey.get("agents", [])
         phases = journey.get("phases", [])
         agent_data = next(
-            (a for a in agents if a["id"] == cj.get("current_agent_id")),
+            (a for a in agents if a["id"] == cj_before.get("current_agent_id")),
             agents[0] if agents else {},
         )
         phase_data = next(
-            (p for p in phases if p["id"] == cj.get("current_phase_id")),
+            (p for p in phases if p["id"] == cj_before.get("current_phase_id")),
             phases[0] if phases else {},
         )
 
+        # Capture prompt for diagnostic display (same compose as production)
         t0 = time.time()
-        error = None
-
+        prompt_sent = ""
         try:
-            prompt = await self._je.compose_agent_prompt(session.client_id, message)
+            prompt_sent = await self._je.compose_agent_prompt(client_id, message)
+            collects_fields = agent_data.get("collects_fields", [])
+            if isinstance(collects_fields, str):
+                collects_fields = json.loads(collects_fields)
+            if collects_fields:
+                existing = cj_before.get("collected_data", {}) or {}
+                if isinstance(existing, str):
+                    existing = json.loads(existing)
+                missing_diag = [
+                    f for f in collects_fields if f not in existing or not existing.get(f)
+                ]
+                from kairos.paths.fast_path import _build_format_instruction
+
+                prompt_sent += _build_format_instruction(
+                    missing_diag, agent_data.get("allowed_tags", []) or []
+                )
+        except Exception:
+            pass
+
+        # ── Call production pipeline ──
+        error = None
+        llm_response_raw = ""
+        capture: dict = {}
+        try:
+            llm_response_raw = await fast_run(
+                message=message,
+                session_id=client_id,
+                client_id=client_id,
+                coach_id=session.coach_id,
+                journey_engine=self._je,
+                classifier_result=None,
+                needs_memory=False,
+                capture=capture,
+            )
         except Exception as e:
-            prompt = f"ERROR composing prompt: {e}"
-            error = f"compose_prompt failed: {e}"
+            llm_response_raw = f"ERROR: {e}"
+            error = f"fast_path.run failed: {e}"
 
-        llm_response = ""
-        parse_error = None
-        parsed = None
+        # ── Read state after production pipeline ──
+        cj_after = await self._je.get_client_journey(client_id)
+        advanced = False
+        new_agent_name = "?"
+        new_phase_name = "?"
+        if cj_after:
+            advanced = (
+                cj_after.get("current_agent_id") != cj_before.get("current_agent_id")
+                or cj_after.get("status") == "completed_journey"
+            )
+            new_agents = cj_after.get("journey", {}).get("agents", [])
+            new_phases = cj_after.get("journey", {}).get("phases", [])
+            new_agent_name = next(
+                (a["name"] for a in new_agents if a["id"] == cj_after.get("current_agent_id")),
+                "?",
+            )
+            new_phase_name = next(
+                (p["name"] for p in new_phases if p["id"] == cj_after.get("current_phase_id")),
+                "?",
+            )
 
-        if not error or prompt:
-            try:
-                from kairos.paths.fast_path import _call_llm
+        # Extract collected fields (what changed in DB)
+        before_cd = cj_before.get("collected_data", {}) or {}
+        after_cd = cj_after.get("collected_data", {}) if cj_after else {}
+        if isinstance(before_cd, str):
+            before_cd = json.loads(before_cd)
+        if isinstance(after_cd, str):
+            after_cd = json.loads(after_cd)
+        new_collected = {
+            k: v for k, v in after_cd.items()
+            if k not in before_cd or before_cd.get(k) != v
+        }
 
-                collects_fields = agent_data.get("collects_fields", [])
-                if isinstance(collects_fields, str):
-                    collects_fields = json.loads(collects_fields)
-                use_json = bool(collects_fields)
-                llm_response = await _call_llm(prompt, message, use_json)
-            except Exception as e:
-                llm_response = f"LLM ERROR: {e}"
-                error = f"LLM call failed: {e}"
-
-        collected = {}
-        expected = agent_data.get("collects_fields", []) if agent_data else []
+        expected = agent_data.get("collects_fields", [])
         if isinstance(expected, str):
             expected = json.loads(expected)
+        missing = [f for f in expected if f not in after_cd or not after_cd.get(f)]
 
-        if not error:
-            try:
-                from kairos.paths.fast_path import _extract_data
-
-                collected = _extract_data(llm_response, expected_fields=expected)
-            except Exception:
-                pass
-
-        if not error:
-            try:
-                clean = llm_response.strip()
-                if clean.startswith("```"):
-                    clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-                parsed = json.loads(clean)
-            except (json.JSONDecodeError, ValueError) as e:
-                parse_error = str(e)
-
-        advancement = {"advanced": False, "error": None, "phase_completed": False, "message": llm_response}
-        if not error:
-            try:
-                advancement = await self._je.validate_and_advance(
-                    session.client_id, llm_response, agent_data
-                )
-            except Exception as e:
-                advancement["error"] = f"validate_and_advance failed: {e}"
+        # Diagnostic: parse the RAW LLM output (not the cleaned message) to detect
+        # whether the agent produced valid structured JSON.
+        parse_error = None
+        parsed = None
+        raw_for_diag = capture.get("raw_response", llm_response_raw)
+        cleaned = _clean_response_text(raw_for_diag)
+        try:
+            parsed = json.loads(cleaned)
+        except (json.JSONDecodeError, ValueError) as e:
+            if expected:
+                parse_error = f"Respuesta no es JSON válido: {e}"
 
         duration_ms = (time.time() - t0) * 1000
-        missing = [f for f in expected if f not in collected or not collected.get(f)]
 
         turn = TestTurn(
             step=len(session.turns) + 1,
@@ -164,26 +210,27 @@ class JourneyTester:
             agent_name=agent_data.get("name", "?"),
             phase_id=phase_data.get("id", ""),
             phase_name=phase_data.get("name", "?"),
-            prompt_sent=prompt,
+            prompt_sent=prompt_sent,
             user_message=message,
-            llm_response_raw=llm_response,
+            llm_response_raw=llm_response_raw,
             llm_response_parsed=parsed,
             json_parse_error=parse_error,
-            collected_fields=collected,
+            collected_fields=new_collected,
             expected_fields=expected,
             missing_fields=missing,
-            advancement=advancement,
+            advancement={"advanced": advanced, "phase_completed": advanced, "message": llm_response_raw},
             duration_ms=duration_ms,
             error=error,
         )
         session.turns.append(turn)
 
-        cj2 = await self._je.get_client_journey(session.client_id)
-        if cj2:
-            session.current_phase_id = cj2.get("current_phase_id", "")
-            session.current_agent_id = cj2.get("current_agent_id", "")
-            if cj2.get("status") == "completed_journey":
-                session.status = "completed"
+        # Update session state
+        session.current_phase_id = cj_after.get("current_phase_id", "") if cj_after else ""
+        session.current_agent_id = cj_after.get("current_agent_id", "") if cj_after else ""
+        session.current_phase_name = new_phase_name
+        session.current_agent_name = new_agent_name
+        if cj_after and cj_after.get("status") == "completed_journey":
+            session.status = "completed"
 
         return turn
 
@@ -198,6 +245,77 @@ class JourneyTester:
             session.current_agent_id = cj.get("current_agent_id", "")
             if cj.get("status") == "completed_journey":
                 session.status = "completed"
+
+    async def jump_to_agent(self, session_id: str, target_agent_id: str):
+        session = self._sessions.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+        journey = await self._je.get_journey(session.journey_id)
+        if not journey:
+            raise ValueError("Journey not found")
+        agents = journey.get("agents", [])
+        target = next((a for a in agents if a["id"] == target_agent_id), None)
+        if not target:
+            raise ValueError("Agent not found")
+
+        # Update client_journeys directly to point to this agent/phase
+        async with self._sf() as s:
+            from sqlalchemy import update
+            await s.execute(
+                update(ClientJourneyModel)
+                .where(ClientJourneyModel.client_id == session.client_id)
+                .values(
+                    current_phase_id=target.get("phase_id", ""),
+                    current_agent_id=target_agent_id,
+                    last_interaction_at=_utcnow(),
+                )
+            )
+            await s.commit()
+
+        session.current_phase_id = target.get("phase_id", "")
+        session.current_agent_id = target_agent_id
+
+    async def get_data_flow(self, session_id: str) -> dict:
+        session = self._sessions.get(session_id)
+        if not session:
+            raise ValueError("Session not found")
+        journey = await self._je.get_journey(session.journey_id)
+        if not journey:
+            raise ValueError("Journey not found")
+
+        phases = journey.get("phases", [])
+        agents = journey.get("agents", [])
+        all_collected_global = set()
+
+        flow = []
+        for phase in sorted(phases, key=lambda p: p.get("order_index", 0)):
+            phase_agents = sorted(
+                [a for a in agents if a.get("phase_id") == phase["id"]],
+                key=lambda a: a.get("order_index", 0),
+            )
+            for agent in phase_agents:
+                cf = agent.get("collects_fields", [])
+                if isinstance(cf, str):
+                    cf = json.loads(cf) if cf else []
+                cf = cf if isinstance(cf, list) else []
+                produces = set(cf)
+                already_available = produces & all_collected_global
+                new_fields = produces - all_collected_global
+                all_collected_global |= produces
+
+                flow.append({
+                    "agent_id": agent["id"],
+                    "agent_name": agent["name"],
+                    "phase_name": phase["name"],
+                    "collects_fields": sorted(produces),
+                    "new_fields": sorted(new_fields),
+                    "already_available": sorted(already_available),
+                    "issue": "redundant" if already_available and not new_fields else (
+                        "partial_redundant" if already_available and new_fields else "ok"
+                    ),
+                })
+
+        return {"flow": flow, "total_fields": sorted(all_collected_global)}
 
     async def reset_test(self, session_id: str):
         session = self._sessions.pop(session_id, None)
@@ -229,26 +347,16 @@ class JourneyTester:
         if not journey:
             raise ValueError("Journey not found")
 
-        agents = journey.get("agents", [])
-        phases = journey.get("phases", [])
-
-        agent_name = next(
-            (a["name"] for a in agents if a["id"] == session.current_agent_id), "?"
-        )
-        phase_name = next(
-            (p["name"] for p in phases if p["id"] == session.current_phase_id), "?"
-        )
-
         return {
             "session_id": session.id,
             "status": session.status,
             "journey_name": journey.get("name", "?"),
-            "phases": phases,
-            "agents": agents,
+            "phases": journey.get("phases", []),
+            "agents": journey.get("agents", []),
             "current_phase_id": session.current_phase_id,
             "current_agent_id": session.current_agent_id,
-            "current_phase_name": phase_name,
-            "current_agent_name": agent_name,
+            "current_phase_name": session.current_phase_name or "?",
+            "current_agent_name": session.current_agent_name or "?",
             "turns_count": len(session.turns),
         }
 

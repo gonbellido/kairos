@@ -1,13 +1,12 @@
 """Journey Test API — simulate conversations, diagnose issues, generate reports."""
 
-import json
 import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from kairos.api.routes.web import _get_coach
 from kairos.engine.journey_tester import JourneyTester
-from kairos.api.routes.web import _get_coach, _render
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -93,6 +92,7 @@ async def test_message(req: Request, journey_id: str):
                 "agent_id": turn.agent_id,
                 "phase_id": turn.phase_id,
                 "response": turn.llm_response_raw,
+                "prompt_sent": turn.prompt_sent,
                 "json_parse_error": turn.json_parse_error,
                 "collected_fields": turn.collected_fields,
                 "missing_fields": turn.missing_fields,
@@ -138,6 +138,40 @@ async def test_reset(req: Request, journey_id: str):
     try:
         await tester.reset_test(session_id)
         return {"ok": True}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.post("/api/v1/journeys/{journey_id}/test/jump")
+async def test_jump(req: Request, journey_id: str):
+    coach = await _get_coach(req)
+    if not coach:
+        return JSONResponse({"ok": False, "error": "No autorizado"}, status_code=403)
+
+    body = await req.json()
+    session_id = body.get("session_id", "")
+    agent_id = body.get("agent_id", "")
+
+    tester = _get_tester(req)
+    try:
+        await tester.jump_to_agent(session_id, agent_id)
+        state = await tester.get_state(session_id)
+        return {"ok": True, "state": state}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+@router.get("/api/v1/journeys/{journey_id}/test/dataflow")
+async def test_dataflow(req: Request, journey_id: str):
+    coach = await _get_coach(req)
+    if not coach:
+        return JSONResponse({"ok": False, "error": "No autorizado"}, status_code=403)
+
+    session_id = req.query_params.get("session_id", "")
+    tester = _get_tester(req)
+    try:
+        df = await tester.get_data_flow(session_id)
+        return {"ok": True, **df}
     except Exception as e:
         return {"ok": False, "error": str(e)}
 
