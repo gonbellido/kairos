@@ -130,6 +130,18 @@ async def test_complete_target():
     assert r["to_phase_id"] == "__complete__"
 
 
+@pytest.mark.asyncio
+async def test_journey_derivation_target():
+    sf = _mock_sf([_make_transition(to_phase="journey:new_123",
+                                     condition={"type": "turns", "min": 1})])
+    c = JourneyCoordinator(sf)
+    r = await c.resolve_transition("j1", "p1", {
+        "collected": {}, "turn_count": 5, "objective_state": {},
+    })
+    assert r is not None
+    assert r["to_phase_id"] == "journey:new_123"
+
+
 # ── F4: fallback / jump_to_agent ──
 
 def _mock_engine_sf():

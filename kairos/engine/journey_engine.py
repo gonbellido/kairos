@@ -921,6 +921,7 @@ class JourneyEngine:
         obj_state = {}
         journey_id = ""
         current_phase_id = ""
+        coach_id = ""
         if agent_data:
             try:
                 from kairos.engine.objective_evaluator import ObjectiveEvaluator
@@ -939,6 +940,7 @@ class JourneyEngine:
                         turn_count = cj.turn_count or 0
                         journey_id = cj.journey_id or ""
                         current_phase_id = cj.current_phase_id or ""
+                        coach_id = cj.coach_id or ""
                         objective = await ObjectiveEvaluator().evaluate(agent_data, collected)
                         obj_state = dict(cj.objective_state or {})
                         obj_state[agent_data.get("id", "?")] = objective
@@ -972,6 +974,21 @@ class JourneyEngine:
                             )).scalars().first()
                             if cj2:
                                 cj2.status = "completed_journey"
+                                cj2.progress_pct = 100
+                                cj2.completed_at = _utcnow()
+                                await s.commit()
+                        result["advanced"] = True
+                    elif target.startswith("journey:"):
+                        new_journey_id = target[len("journey:"):]
+                        await self.assign_client(client_id, coach_id, new_journey_id)
+                        async with self._sf() as s:
+                            cj2 = (await s.execute(
+                                select(ClientJourneyModel).where(
+                                    ClientJourneyModel.client_id == client_id
+                                )
+                            )).scalars().first()
+                            if cj2:
+                                cj2.status = "derived"
                                 cj2.progress_pct = 100
                                 cj2.completed_at = _utcnow()
                                 await s.commit()
