@@ -914,6 +914,31 @@ class JourneyEngine:
             await self.advance_client(client_id)
             result["advanced"] = True
 
+        # F2: evaluate the acting agent's objective (deterministic) and persist it.
+        # This does not drive routing yet — the coordinator (F3) consumes it.
+        if agent_data:
+            try:
+                from kairos.engine.objective_evaluator import ObjectiveEvaluator
+                async with self._sf() as s:
+                    cj = (await s.execute(
+                        select(ClientJourneyModel).where(ClientJourneyModel.client_id == client_id)
+                    )).scalars().first()
+                    if cj:
+                        collected = cj.collected_data or {}
+                        if isinstance(collected, str):
+                            try:
+                                collected = json.loads(collected)
+                            except (json.JSONDecodeError, ValueError):
+                                collected = {}
+                        objective = await ObjectiveEvaluator().evaluate(agent_data, collected)
+                        state = dict(cj.objective_state or {})
+                        state[agent_data.get("id", "?")] = objective
+                        cj.objective_state = state
+                        await s.commit()
+                        result["objective"] = objective
+            except Exception as e:
+                logger.debug("objective evaluation skipped: %s", e)
+
         return result
 
     async def _jump_to_step(self, client_id: str, target_phase_id: str):
