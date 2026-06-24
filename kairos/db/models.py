@@ -190,3 +190,16 @@ class CoachMethodologyDocModel(Base):
     content = Column(Text, nullable=False)
     source = Column(String, default="text")
     created_at = Column(DateTime(timezone=True), default=lambda: _utcnow())
+
+
+class JourneyTransitionModel(Base):
+    __tablename__ = "journey_transitions"
+    id = Column(String, primary_key=True)
+    journey_id = Column(String, ForeignKey("journeys.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_phase_id = Column(String, nullable=False, index=True)
+    to_phase_id = Column(String, default="")
+    condition = Column(JSON, default=dict)
+    priority = Column(Integer, default=0)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: _utcnow())
+    updated_at = Column(DateTime(timezone=True), default=lambda: _utcnow(), onupdate=lambda: _utcnow())

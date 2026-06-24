@@ -915,7 +915,12 @@ class JourneyEngine:
             result["advanced"] = True
 
         # F2: evaluate the acting agent's objective (deterministic) and persist it.
-        # This does not drive routing yet — the coordinator (F3) consumes it.
+        # Extracted variables are reused by the coordinator (F3) below.
+        collected = {}
+        turn_count = 0
+        obj_state = {}
+        journey_id = ""
+        current_phase_id = ""
         if agent_data:
             try:
                 from kairos.engine.objective_evaluator import ObjectiveEvaluator
@@ -924,20 +929,58 @@ class JourneyEngine:
                         select(ClientJourneyModel).where(ClientJourneyModel.client_id == client_id)
                     )).scalars().first()
                     if cj:
-                        collected = cj.collected_data or {}
-                        if isinstance(collected, str):
+                        raw = cj.collected_data or {}
+                        if isinstance(raw, str):
                             try:
-                                collected = json.loads(collected)
+                                raw = json.loads(raw)
                             except (json.JSONDecodeError, ValueError):
-                                collected = {}
+                                raw = {}
+                        collected = raw
+                        turn_count = cj.turn_count or 0
+                        journey_id = cj.journey_id or ""
+                        current_phase_id = cj.current_phase_id or ""
                         objective = await ObjectiveEvaluator().evaluate(agent_data, collected)
-                        state = dict(cj.objective_state or {})
-                        state[agent_data.get("id", "?")] = objective
-                        cj.objective_state = state
+                        obj_state = dict(cj.objective_state or {})
+                        obj_state[agent_data.get("id", "?")] = objective
+                        cj.objective_state = obj_state
                         await s.commit()
                         result["objective"] = objective
             except Exception as e:
                 logger.debug("objective evaluation skipped: %s", e)
+
+        # F3: guard-based transitions via the coordinator (runs when tags did not advance)
+        if not result.get("advanced") and agent_data and journey_id and current_phase_id:
+            try:
+                from kairos.engine.journey_coordinator import JourneyCoordinator
+                ctx = {
+                    "collected": collected,
+                    "turn_count": turn_count,
+                    "objective_state": obj_state,
+                }
+                coord = JourneyCoordinator(self._sf)
+                transition = await coord.resolve_transition(
+                    journey_id, current_phase_id, ctx
+                )
+                if transition:
+                    target = transition["to_phase_id"]
+                    if target == "__complete__":
+                        async with self._sf() as s:
+                            cj2 = (await s.execute(
+                                select(ClientJourneyModel).where(
+                                    ClientJourneyModel.client_id == client_id
+                                )
+                            )).scalars().first()
+                            if cj2:
+                                cj2.status = "completed_journey"
+                                cj2.progress_pct = 100
+                                cj2.completed_at = _utcnow()
+                                await s.commit()
+                        result["advanced"] = True
+                    elif target:
+                        await self._jump_to_step(client_id, target)
+                        result["advanced"] = True
+            except Exception as e:
+                logger.debug("coordinator transition skipped: %s", e)
 
         return result
 
