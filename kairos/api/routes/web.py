@@ -122,9 +122,10 @@ async def admin_create_coach(req: Request):
     if not coach or coach["role"] != "admin":
         return _redirect()
     data = await req.form()
+    role = data.get("role", "coach")
     try:
         coach_db = req.app.state.coach_db
-        await coach_db.create_coach(data["email"], data["password"], data["name"], role="coach")
+        await coach_db.create_coach(data["email"], data["password"], data["name"], role=role)
     except ValueError:
         pass
     return RedirectResponse(url="/admin", status_code=303)

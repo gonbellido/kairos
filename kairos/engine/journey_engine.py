@@ -1222,9 +1222,11 @@ class JourneyEngine:
     # ── Seed defaults ──
 
     async def seed_defaults(self):
-        """Seed default journey templates if none exist."""
+        """Seed default journey templates if none exist for coach_id='default'."""
         async with self._sf() as s:
-            count = await s.execute(select(JourneyModel).limit(1))
+            count = await s.execute(
+                select(JourneyModel).where(JourneyModel.coach_id == "default").limit(1)
+            )
             if count.scalars().first():
                 return
 
