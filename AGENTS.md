@@ -99,12 +99,14 @@ Cliente (chat UI) ──HTTP──► /api/v1/voice/token ──► LiveKit Acce
 ### Env vars requeridas
 
 ```
-LIVEKIT_URL=wss://tu-servidor-livekit.com
+LIVEKIT_URL=ws://livekit:7880                # interno (Docker)
+LIVEKIT_PUBLIC_URL=wss://api.ether.care/livekit  # público (cliente)
 LIVEKIT_API_KEY=...
 LIVEKIT_API_SECRET=...
 CARTESIA_API_KEY=...
 DEEPGRAM_API_KEY=...
 ```
+- `LIVEKIT_PUBLIC_URL`: DEBE coincidir con una ruta en nginx que proxy WebSocket a `livekit:7880`
 
 ### Servicio Docker
 
@@ -177,6 +179,7 @@ async def entrypoint(ctx: JobContext):
 7. **LiveKit UDP ports**: 7882/udp debe estar expuesto en el host y abierto en firewall
 8. **`use_external_ip: true`** + `--node-ip=IP_PUBLICA` — necesario para ICE candidates correctos
 9. **Hairpin NAT**: el agente dentro de Docker necesita `extra_hosts` o iptables para conectar a IP pública
+10. **Nginx `/livekit` route obligatoria**: `LIVEKIT_PUBLIC_URL` apunta a `wss://api.ether.care/livekit`. Sin el bloque `location /livekit` con proxy WebSocket a `livekit:7880` en nginx (server block `api.*`), el cliente no puede establecer la conexión de señalización y el voice agent no recibe audio.
 
 ## Servicios
 | Servicio | Puerto interno | Healthcheck |
