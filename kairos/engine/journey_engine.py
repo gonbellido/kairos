@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from kairos.db.models import (
@@ -580,6 +580,8 @@ class JourneyEngine:
                 cj.status = new_status
                 cj.progress_pct = progress
                 cj.last_interaction_at = _utcnow()
+                if new_agent_id != current_agent_id or new_status == "completed_journey":
+                    cj.turn_count = 0
                 if new_status == "completed_journey":
                     cj.completed_at = _utcnow()
 
@@ -772,6 +774,18 @@ class JourneyEngine:
         """K3+K2: Parse JSON response, save structured data, apply tag transitions."""
         result = {"advanced": False, "error": None, "phase_completed": False, "message": llm_response, "action": "stay", "suggested_tags": []}
 
+        # Count this turn against the current agent (reset to 0 on transition)
+        try:
+            async with self._sf() as s:
+                await s.execute(
+                    update(ClientJourneyModel)
+                    .where(ClientJourneyModel.client_id == client_id)
+                    .values(turn_count=func.coalesce(ClientJourneyModel.turn_count, 0) + 1)
+                )
+                await s.commit()
+        except Exception as e:
+            logger.debug("turn_count increment skipped: %s", e)
+
         # Parse JSON
         data = None
         try:
@@ -920,6 +934,7 @@ class JourneyEngine:
             if cj:
                 cj.current_phase_id = target_phase_id
                 cj.current_agent_id = first_agent["id"] if first_agent else cj.current_agent_id
+                cj.turn_count = 0
                 cj.last_interaction_at = _utcnow()
                 ev = JourneyEventModel(id=uuid4().hex[:12], client_id=client_id,
                                        coach_id=cj.coach_id, journey_id=cj.journey_id,
@@ -1064,6 +1079,8 @@ class JourneyEngine:
                 "progress_pct": cj.progress_pct, "extra": cj.extra,
                 "collected_data": collected,
                 "current_phase_order": getattr(cj, "current_phase_order", 1),
+                "turn_count": getattr(cj, "turn_count", 0) or 0,
+                "objective_state": getattr(cj, "objective_state", {}) or {},
                 "started_at": cj.started_at.isoformat() if cj.started_at else "",
                 "last_interaction_at": cj.last_interaction_at.isoformat() if cj.last_interaction_at else ""}
 

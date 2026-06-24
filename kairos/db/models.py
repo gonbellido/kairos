@@ -141,6 +141,8 @@ class ClientJourneyModel(Base):
     progress_pct = Column(Integer, default=0)
     collected_data = Column(JSON, default=dict)
     current_phase_order = Column(Integer, default=1)
+    turn_count = Column(Integer, default=0)
+    objective_state = Column(JSON, default=dict)
     extra = Column(JSON, default=dict)
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
