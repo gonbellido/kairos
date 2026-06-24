@@ -293,9 +293,29 @@ async def admin_journeys_page(req: Request):
         je = JourneyEngine(create_session_factory())
         req.app.state.journey_engine = je
         await je.seed_defaults()
-    journeys = await je.list_journeys("default", full=True)
-    coach_journeys = await je.list_journeys(coach["id"], full=True)
-    all_journeys = journeys + [j for j in coach_journeys if j["id"] not in {x["id"] for x in journeys}]
+
+    # Admin sees ALL journeys from all coaches
+    from sqlalchemy import select
+    from kairos.db.models import JourneyModel, JourneyPhaseModel, JourneyAgentModel
+    sf = je._sf
+    async with sf() as s:
+        result = await s.execute(
+            select(JourneyModel).order_by(JourneyModel.coach_id, JourneyModel.name)
+        )
+        all_journeys = []
+        for j in result.scalars().all():
+            d = {c.name: getattr(j, c.name) for c in j.__table__.columns}
+            # Load phases and agents for each journey
+            pr = await s.execute(
+                select(JourneyPhaseModel).where(JourneyPhaseModel.journey_id == j.id).order_by(JourneyPhaseModel.order_index)
+            )
+            d["phases"] = [{c.name: getattr(p, c.name) for c in p.__table__.columns} for p in pr.scalars().all()]
+            ar = await s.execute(
+                select(JourneyAgentModel).where(JourneyAgentModel.journey_id == j.id).order_by(JourneyAgentModel.order_index)
+            )
+            d["agents"] = [{c.name: getattr(a, c.name) for c in a.__table__.columns} for a in ar.scalars().all()]
+            all_journeys.append(d)
+
     return _render(req, "admin_journeys.html", {"title": "Journeys", "coach": coach, "journeys": all_journeys})
 
 
